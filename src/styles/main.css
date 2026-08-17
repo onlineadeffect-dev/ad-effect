@@ -1,0 +1,126 @@
+@import './variables.css';
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  scroll-behavior: smooth;
+  font-family: var(--font-family);
+  color: var(--text-dark);
+  background-color: var(--light-bg);
+}
+
+body {
+  overflow-x: hidden;
+  width: 100%;
+}
+
+/* Header Navigation */
+.header-nav {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  z-index: 1000;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 1.5rem 2rem;
+  background: rgba(244, 244, 246, 0.85);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  transition: background-color var(--transition-fast);
+}
+
+body.dark-header .header-nav {
+  background: rgba(227, 30, 36, 0.95);
+}
+
+.nav-links {
+  display: flex;
+  gap: 3rem;
+  list-style: none;
+}
+
+.nav-item a {
+  text-decoration: none;
+  font-weight: 800;
+  font-size: 0.95rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #222222;
+  position: relative;
+  padding-bottom: 4px;
+  transition: color var(--transition-fast);
+}
+
+body.dark-header .nav-item a {
+  color: #FFFFFF;
+}
+
+.nav-item.active a,
+.nav-item a:hover {
+  color: var(--primary-red) !important;
+}
+
+body.dark-header .nav-item.active a,
+body.dark-header .nav-item a:hover {
+  color: #FFFFFF !important;
+  text-shadow: 0 0 10px rgba(255,255,255,0.6);
+}
+
+.nav-item.active a::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  height: 3px;
+  background-color: var(--primary-red);
+  border-radius: 2px;
+}
+
+body.dark-header .nav-item.active a::after {
+  background-color: #FFFFFF;
+}
+
+/* Section Containers */
+section {
+  min-height: 100vh;
+  width: 100%;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  padding-top: 5rem;
+}
+
+/* Replay Animation Floating Button */
+.replay-btn {
+  position: fixed;
+  bottom: 1.5rem;
+  right: 1.5rem;
+  z-index: 999;
+  background: var(--dark-bg);
+  color: var(--white);
+  border: none;
+  padding: 0.6rem 1.2rem;
+  border-radius: 30px;
+  font-weight: 600;
+  font-size: 0.85rem;
+  cursor: pointer;
+  box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  transition: transform var(--transition-fast), background var(--transition-fast);
+}
+
+.replay-btn:hover {
+  transform: translateY(-2px);
+  background: var(--primary-red);
+}

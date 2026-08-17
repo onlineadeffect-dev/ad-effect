@@ -1,0 +1,318 @@
+/* HOME SECTION STYLES & INTRO ANIMATIONS */
+#home {
+  background: radial-gradient(circle at center, #FFFFFF 0%, #E6E6EA 100%);
+  overflow: hidden;
+  justify-content: space-between;
+  padding-bottom: 0;
+}
+
+.home-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  max-width: 1200px;
+  margin-top: auto;
+  margin-bottom: auto;
+  position: relative;
+  z-index: 10;
+}
+
+/* Brand Assembly Wrapper */
+.brand-assembly {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  transform: translateY(40px);
+  transition: transform 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.brand-assembly.shifted-up {
+  transform: translateY(-20px);
+}
+
+.logo-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.8rem;
+  position: relative;
+}
+
+.logo-text {
+  font-size: 4.8rem;
+  font-weight: 800;
+  letter-spacing: -2px;
+  line-height: 1;
+  display: flex;
+  align-items: baseline;
+  opacity: 0;
+  transform: scale(0.9);
+  transition: opacity 0.4s ease, transform 0.4s ease;
+}
+
+.logo-text.show {
+  opacity: 1;
+  transform: scale(1);
+}
+
+.logo-text .ad {
+  color: #111111;
+  font-weight: 900;
+}
+
+.logo-text .effect {
+  color: var(--primary-red);
+  font-weight: 700;
+}
+
+/* 3 Dots Container & Animations */
+.dots-container {
+  display: flex;
+  gap: 8px;
+  position: relative;
+  transition: flex-direction 0.3s ease, gap 0.3s ease;
+}
+
+.dots-container.vertical {
+  flex-direction: column;
+  gap: 6px;
+}
+
+.dot {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  opacity: 0;
+  transform: scale(0);
+}
+
+.dot-red-top {
+  background-color: var(--primary-red);
+}
+
+.dot-gray-mid {
+  background-color: #C2C2C2;
+}
+
+.dot-red-bot {
+  background-color: var(--primary-red);
+}
+
+/* Dot Pop Animations */
+.dot.pop-1 {
+  animation: popIn 0.25s forwards cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+.dot.pop-2 {
+  animation: popIn 0.25s 0.15s forwards cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+.dot.pop-3 {
+  animation: popIn 0.25s 0.3s forwards cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+@keyframes popIn {
+  0% { opacity: 0; transform: scale(0); }
+  70% { opacity: 1; transform: scale(1.3); }
+  100% { opacity: 1; transform: scale(1); }
+}
+
+/* Slogan Typing Effect */
+.slogan-container {
+  margin-top: 0.6rem;
+  height: 28px;
+}
+
+.slogan-text {
+  font-size: 1.6rem;
+  font-weight: 600;
+  color: var(--primary-red);
+  letter-spacing: 0.45em;
+  text-transform: uppercase;
+  overflow: hidden;
+  white-space: nowrap;
+  border-right: 2px solid transparent;
+  width: 0;
+}
+
+.slogan-text.typing {
+  animation: typing 0.8s forwards steps(20, end);
+}
+
+@keyframes typing {
+  from { width: 0; }
+  to { width: 100%; }
+}
+
+/* CTA Buttons Row */
+.cta-buttons {
+  display: flex;
+  gap: 1.5rem;
+  margin-top: 2rem;
+  opacity: 0;
+  transform: translateY(20px);
+  transition: opacity 0.5s ease 0.2s, transform 0.5s ease 0.2s;
+}
+
+.cta-buttons.show {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.btn-explore {
+  background-color: #FFFFFF;
+  color: #111111;
+  border: 2px solid #111111;
+  padding: 0.9rem 2.2rem;
+  border-radius: 12px;
+  font-weight: 700;
+  font-size: 1.1rem;
+  text-decoration: none;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+  transition: all var(--transition-fast);
+}
+
+.btn-explore:hover {
+  background-color: #111111;
+  color: #FFFFFF;
+  transform: translateY(-2px);
+}
+
+.btn-book {
+  background-color: var(--primary-red);
+  color: #FFFFFF;
+  border: 2px solid var(--primary-red);
+  padding: 0.9rem 2.2rem;
+  border-radius: 12px;
+  font-weight: 700;
+  font-size: 1.1rem;
+  text-decoration: none;
+  cursor: pointer;
+  box-shadow: 0 6px 16px rgba(227, 30, 36, 0.35);
+  transition: all var(--transition-fast);
+}
+
+.btn-book:hover {
+  background-color: var(--primary-red-hover);
+  border-color: var(--primary-red-hover);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(227, 30, 36, 0.45);
+}
+
+/* 3 Billboards Display Area */
+.billboards-stage {
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  width: 100%;
+  max-width: 1300px;
+  gap: 1.5rem;
+  margin-top: 2rem;
+  transform: translateY(120%);
+  transition: transform 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.billboards-stage.show {
+  transform: translateY(0);
+}
+
+/* Side Billboards */
+.billboard-side {
+  flex: 1;
+  max-width: 320px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.billboard-side-screen {
+  width: 100%;
+  height: 180px;
+  background-color: var(--primary-red);
+  border-radius: 8px;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.25);
+  position: relative;
+  overflow: hidden;
+  border: 3px solid #111111;
+}
+
+.billboard-lamps {
+  display: flex;
+  justify-content: space-around;
+  width: 80%;
+  margin-bottom: -6px;
+  z-index: 2;
+}
+
+.lamp {
+  width: 14px;
+  height: 12px;
+  background: #222222;
+  border-radius: 4px 4px 0 0;
+  position: relative;
+}
+
+.lamp::after {
+  content: '';
+  position: absolute;
+  bottom: -4px;
+  left: 2px;
+  width: 10px;
+  height: 4px;
+  background: #FFAA00;
+  border-radius: 2px;
+  box-shadow: 0 0 8px #FFAA00;
+}
+
+.billboard-pole {
+  width: 32px;
+  height: 140px;
+  background: linear-gradient(90deg, #1A1A1A 0%, #444444 50%, #1A1A1A 100%);
+  box-shadow: 2px 0 10px rgba(0,0,0,0.3);
+}
+
+/* Center Prominent Unipole Billboard */
+.billboard-center {
+  flex: 1.8;
+  max-width: 620px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  z-index: 5;
+}
+
+.billboard-center-screen {
+  width: 100%;
+  height: 260px;
+  background: #D8D8DC;
+  border: 4px solid #1C1C1C;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem;
+  text-align: center;
+  box-shadow: 0 16px 40px rgba(0,0,0,0.3);
+  position: relative;
+}
+
+.billboard-center-screen h3 {
+  font-size: 1.3rem;
+  font-weight: 700;
+  color: #222222;
+  line-height: 1.4;
+}
+
+.billboard-truss {
+  width: 95%;
+  height: 16px;
+  background: repeating-linear-gradient(45deg, #222, #222 10px, #444 10px, #444 20px);
+  border-radius: 2px;
+}
+
+.billboard-center-pole {
+  width: 44px;
+  height: 120px;
+  background: linear-gradient(90deg, #111 0%, #444 50%, #111 100%);
+}
