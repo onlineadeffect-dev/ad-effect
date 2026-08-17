@@ -316,3 +316,140 @@
   height: 120px;
   background: linear-gradient(90deg, #111 0%, #444 50%, #111 100%);
 }
+
+/* Mobile Responsive Adjustments for HOME */
+@media (max-width: 992px) {
+  .logo-text {
+    font-size: 3.8rem;
+  }
+  .slogan-text {
+    font-size: 1.3rem;
+    letter-spacing: 0.35em;
+  }
+  .billboards-stage {
+    gap: 0.8rem;
+  }
+  .billboard-side {
+    max-width: 240px;
+  }
+  .billboard-side-screen {
+    height: 140px;
+  }
+  .billboard-center-screen {
+    height: 220px;
+  }
+}
+
+@media (max-width: 768px) {
+  #home {
+    padding-top: 5rem;
+    padding-left: 1rem;
+    padding-right: 1rem;
+  }
+
+  .brand-assembly {
+    transform: translateY(20px);
+  }
+
+  .brand-assembly.shifted-up {
+    transform: translateY(-10px);
+  }
+
+  .logo-text {
+    font-size: 2.8rem;
+    letter-spacing: -1px;
+  }
+
+  .dots-container {
+    gap: 6px;
+  }
+
+  .dots-container.vertical {
+    gap: 4px;
+  }
+
+  .dot {
+    width: 12px;
+    height: 12px;
+  }
+
+  .slogan-container {
+    margin-top: 0.4rem;
+    height: 24px;
+  }
+
+  .slogan-text {
+    font-size: 0.95rem;
+    letter-spacing: 0.25em;
+  }
+
+  .cta-buttons {
+    flex-direction: column;
+    gap: 0.8rem;
+    width: 100%;
+    max-width: 280px;
+    margin-top: 1.2rem;
+  }
+
+  .btn-explore, .btn-book {
+    width: 100%;
+    text-align: center;
+    padding: 0.75rem 1.2rem;
+    font-size: 0.95rem;
+  }
+
+  .billboards-stage {
+    gap: 0.5rem;
+    margin-top: 1.5rem;
+  }
+
+  .billboard-side {
+    display: none; /* Focus on center billboard on small phones for clean view */
+  }
+
+  .billboard-center {
+    flex: 1;
+    width: 100%;
+    max-width: 100%;
+  }
+
+  .billboard-center-screen {
+    height: 190px;
+    padding: 1.2rem;
+  }
+
+  .billboard-center-screen h3 {
+    font-size: 1rem;
+  }
+
+  .billboard-center-pole {
+    height: 90px;
+    width: 34px;
+  }
+}
+
+@media (max-width: 480px) {
+  .logo-text {
+    font-size: 2.3rem;
+  }
+
+  .dot {
+    width: 10px;
+    height: 10px;
+  }
+
+  .slogan-text {
+    font-size: 0.82rem;
+    letter-spacing: 0.2em;
+  }
+
+  .billboard-center-screen {
+    height: 160px;
+    padding: 1rem;
+  }
+
+  .billboard-center-screen h3 {
+    font-size: 0.88rem;
+  }
+}
+

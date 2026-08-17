@@ -28,21 +28,23 @@ body {
   display: flex;
   justify-content: center;
   align-items: center;
-  padding: 1.5rem 2rem;
-  background: rgba(244, 244, 246, 0.85);
+  padding: 1.2rem 1.5rem;
+  background: rgba(244, 244, 246, 0.92);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
-  transition: background-color var(--transition-fast);
+  transition: background-color var(--transition-fast), padding var(--transition-fast);
 }
 
 body.dark-header .header-nav {
-  background: rgba(227, 30, 36, 0.95);
+  background: rgba(227, 30, 36, 0.96);
 }
 
 .nav-links {
   display: flex;
-  gap: 3rem;
+  gap: 2.5rem;
   list-style: none;
+  align-items: center;
+  justify-content: center;
 }
 
 .nav-item a {
@@ -87,6 +89,44 @@ body.dark-header .nav-item.active a::after {
   background-color: #FFFFFF;
 }
 
+/* Mobile Header Navigation Responsive Adjustments */
+@media (max-width: 768px) {
+  .header-nav {
+    padding: 0.8rem 0.8rem;
+  }
+
+  .nav-links {
+    gap: 0.8rem;
+    width: 100%;
+    justify-content: space-around;
+  }
+
+  .nav-item a {
+    font-size: 0.72rem;
+    letter-spacing: 0.03em;
+    padding-bottom: 2px;
+  }
+
+  .nav-item.active a::after {
+    height: 2px;
+  }
+}
+
+@media (max-width: 480px) {
+  .header-nav {
+    padding: 0.6rem 0.4rem;
+  }
+
+  .nav-links {
+    gap: 0.4rem;
+  }
+
+  .nav-item a {
+    font-size: 0.65rem;
+    letter-spacing: 0.01em;
+  }
+}
+
 /* Section Containers */
 section {
   min-height: 100vh;
@@ -96,7 +136,7 @@ section {
   flex-direction: column;
   justify-content: center;
   align-items: center;
-  padding-top: 5rem;
+  padding-top: 4.5rem;
 }
 
 /* Replay Animation Floating Button */
@@ -118,6 +158,15 @@ section {
   align-items: center;
   gap: 0.5rem;
   transition: transform var(--transition-fast), background var(--transition-fast);
+}
+
+@media (max-width: 768px) {
+  .replay-btn {
+    bottom: 1rem;
+    right: 1rem;
+    padding: 0.5rem 0.9rem;
+    font-size: 0.75rem;
+  }
 }
 
 .replay-btn:hover {

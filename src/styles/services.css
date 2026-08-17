@@ -149,3 +149,91 @@
   font-weight: 800;
   color: #111111;
 }
+
+/* Mobile Responsive Adjustments for SERVICES */
+@media (max-width: 900px) {
+  #services {
+    padding: 5rem 1.2rem 3rem 1.2rem;
+  }
+
+  .services-container {
+    flex-direction: column;
+    gap: 2rem;
+  }
+
+  .services-menu {
+    width: 100%;
+  }
+
+  .services-main-title {
+    font-size: 2.2rem;
+    text-align: center;
+    margin-bottom: 0.8rem;
+  }
+
+  .service-item {
+    padding: 0.9rem 1.2rem;
+    gap: 1rem;
+    border-radius: 12px;
+  }
+
+  .service-item-name {
+    font-size: 1.05rem;
+  }
+
+  .service-item-icon {
+    width: 36px;
+    height: 36px;
+  }
+
+  .service-item-icon svg {
+    width: 22px;
+    height: 22px;
+  }
+
+  .service-details-card {
+    width: 100%;
+    min-height: auto;
+    padding: 1.5rem;
+    border-radius: 16px;
+  }
+
+  .service-card-header {
+    margin-bottom: 1.2rem;
+    gap: 0.8rem;
+  }
+
+  .service-card-title {
+    font-size: 2.0rem;
+  }
+
+  .service-card-icon {
+    width: 48px;
+    height: 48px;
+  }
+
+  .service-card-icon svg {
+    width: 26px;
+    height: 26px;
+  }
+
+  .service-card-body {
+    font-size: 0.95rem;
+    line-height: 1.6;
+  }
+}
+
+@media (max-width: 480px) {
+  .services-main-title {
+    font-size: 1.8rem;
+  }
+
+  .service-card-title {
+    font-size: 1.6rem;
+  }
+
+  .service-item-name {
+    font-size: 0.95rem;
+  }
+}
+

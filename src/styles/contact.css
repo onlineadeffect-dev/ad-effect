@@ -222,3 +222,73 @@
 .phone-contact:hover {
   text-shadow: 0 0 10px rgba(255,255,255,0.8);
 }
+
+/* Mobile Responsive Adjustments for CONTACT */
+@media (max-width: 900px) {
+  #contact {
+    padding: 5rem 1.2rem 0rem 1.2rem;
+  }
+
+  .contact-main {
+    flex-direction: column;
+    gap: 2rem;
+  }
+
+  .contact-title {
+    font-size: 2.4rem;
+    text-align: center;
+  }
+
+  .send-btn-wrapper {
+    justify-content: center;
+  }
+
+  .btn-send {
+    width: 100%;
+    padding: 0.8rem 2rem;
+    font-size: 1.3rem;
+  }
+
+  .map-wrapper {
+    height: 320px;
+    border: 4px solid #FFFFFF;
+    border-radius: 16px;
+  }
+
+  .footer-bar {
+    flex-direction: column;
+    gap: 1.2rem;
+    text-align: center;
+    padding: 1.5rem 0;
+    margin-top: 2rem;
+  }
+
+  .social-links {
+    justify-content: center;
+  }
+}
+
+@media (max-width: 480px) {
+  .contact-title {
+    font-size: 2.0rem;
+  }
+
+  .form-input, .form-textarea {
+    padding: 0.9rem 1rem;
+    font-size: 0.95rem;
+    border-radius: 12px;
+  }
+
+  .form-textarea {
+    min-height: 160px;
+  }
+
+  .map-wrapper {
+    height: 260px;
+  }
+
+  .phone-contact {
+    font-size: 1.1rem;
+  }
+}
+

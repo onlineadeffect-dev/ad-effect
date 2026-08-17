@@ -81,3 +81,54 @@
   box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5);
   border: 4px solid #FFFFFF;
 }
+
+/* Mobile Responsive Adjustments for ABOUT US */
+@media (max-width: 768px) {
+  #about {
+    padding: 5rem 1.2rem 3rem 1.2rem;
+  }
+
+  .about-title {
+    font-size: 2.4rem;
+  }
+
+  .about-description {
+    font-size: 0.92rem;
+    line-height: 1.6;
+    text-align: center;
+    letter-spacing: 0;
+  }
+
+  .carousel-wrapper {
+    padding: 2rem 0;
+  }
+
+  .carousel-track {
+    gap: 1.2rem;
+  }
+
+  .carousel-item {
+    width: 270px;
+    height: 160px;
+  }
+
+  .carousel-item.active-center {
+    transform: scale(1.15);
+  }
+}
+
+@media (max-width: 480px) {
+  .about-title {
+    font-size: 2.0rem;
+  }
+
+  .about-description {
+    font-size: 0.86rem;
+  }
+
+  .carousel-item {
+    width: 220px;
+    height: 135px;
+  }
+}
+
