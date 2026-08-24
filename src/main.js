@@ -4,6 +4,8 @@ import './styles/about.css';
 import './styles/services.css';
 import './styles/projects.css';
 import './styles/contact.css';
+import './styles/booking.css';
+import './styles/dashboard.css';
 
 import { initHomeAnimation } from './scripts/animation.js';
 import { initCarousel } from './scripts/carousel.js';
@@ -11,21 +13,35 @@ import { initServices } from './scripts/services.js';
 import { initProjectsAnimation } from './scripts/projects.js';
 import { initContactForm } from './scripts/contact.js';
 
+import { initAuth, showPage } from './scripts/auth.js';
+import { initDiscovery } from './scripts/discovery.js';
+import { initBookingWizard } from './scripts/bookingWizard.js';
+import { initDashboard } from './scripts/dashboard.js';
+
+// Expose showPage to window object for inline click handlers
+window.showPage = showPage;
+
 document.addEventListener('DOMContentLoaded', () => {
-  // Initialize module scripts
+  // Initialize existing animation & menu scripts
   initHomeAnimation();
   initCarousel();
   initServices();
   initProjectsAnimation();
   initContactForm();
 
-  // Manage Navigation Active State & Navbar Background on Scroll
+  // Initialize Billboard Booking System Modules
+  initAuth();
+  initDiscovery();
+  initBookingWizard();
+  initDashboard();
+
+  // Navigation link active states observer
   const sections = document.querySelectorAll('section');
   const navItems = document.querySelectorAll('.nav-item');
 
   const observerOptions = {
     root: null,
-    threshold: 0.4
+    threshold: 0.3
   };
 
   const sectionObserver = new IntersectionObserver((entries) => {
@@ -33,17 +49,15 @@ document.addEventListener('DOMContentLoaded', () => {
       if (entry.isIntersecting) {
         const id = entry.target.getAttribute('id');
         
-        // Update nav active link
         navItems.forEach(item => {
           const link = item.querySelector('a');
-          if (link.getAttribute('href') === `#${id}`) {
+          if (link && link.getAttribute('href') === `#${id}`) {
             item.classList.add('active');
           } else {
             item.classList.remove('active');
           }
         });
 
-        // Toggle dark header styling when on red sections (About Us & Contact)
         if (id === 'about' || id === 'contact') {
           document.body.classList.add('dark-header');
         } else {
@@ -54,4 +68,18 @@ document.addEventListener('DOMContentLoaded', () => {
   }, observerOptions);
 
   sections.forEach(section => sectionObserver.observe(section));
+
+  // Initial page view check based on URL hash
+  const initialHash = window.location.hash ? window.location.hash.replace('#', '') : 'home';
+  if (initialHash && ['discoverySection', 'authSection', 'dashboardSection'].includes(initialHash)) {
+    showPage(initialHash);
+  }
+
+  // Listen to browser hash change event
+  window.addEventListener('hashchange', () => {
+    const hash = window.location.hash ? window.location.hash.replace('#', '') : 'home';
+    if (hash) {
+      showPage(hash);
+    }
+  });
 });

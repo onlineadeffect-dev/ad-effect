@@ -1,4 +1,11 @@
 @import './variables.css';
+@import "./home.css";
+@import "./about.css";
+@import "./services.css";
+@import "./projects.css";
+@import "./booking.css";
+@import "./contact.css";
+@import "./dashboard.css";
 
 * {
   box-sizing: border-box;

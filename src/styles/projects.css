@@ -8,6 +8,9 @@
   max-width: 1200px;
   width: 100%;
   margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 2.5rem;
 }
 
 .projects-grid {
@@ -25,8 +28,8 @@
   border: 3px solid #1A1A1A;
   display: flex;
   flex-direction: column;
-  opacity: 0;
-  transform: scale(0.85) translateY(30px);
+  opacity: 1;
+  transform: scale(1) translateY(0);
   transition: opacity 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275),
               transform 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275),
               box-shadow 0.3s ease;

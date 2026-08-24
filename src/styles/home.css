@@ -1,9 +1,15 @@
 /* HOME SECTION STYLES & INTRO ANIMATIONS */
 #home {
+  width: 100%;
+  min-height: auto;
+  flex-direction: column;
+  align-items: center;
   background: radial-gradient(circle at center, #FFFFFF 0%, #E6E6EA 100%);
   overflow: hidden;
-  justify-content: space-between;
+  justify-content: flex-start;
   padding-bottom: 0;
+  box-sizing: border-box;
+  padding-top: 120px;
 }
 
 .home-container {
@@ -12,9 +18,9 @@
   align-items: center;
   justify-content: center;
   width: 100%;
-  max-width: 1200px;
-  margin-top: auto;
-  margin-bottom: auto;
+  max-width: 100%;
+  margin-top: 0;
+  margin-bottom: 0;
   position: relative;
   z-index: 10;
 }
@@ -206,11 +212,14 @@
   align-items: flex-end;
   justify-content: center;
   width: 100%;
-  max-width: 1300px;
+  max-width: 100%;
   gap: 1.5rem;
   margin-top: 2rem;
   transform: translateY(120%);
   transition: transform 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+  padding: 0.5 rem; 
+  gap: 0.5rem; 
+  box-sizing: border-box;
 }
 
 .billboards-stage.show {
