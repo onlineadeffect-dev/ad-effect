@@ -251,7 +251,7 @@ async function handleSignUpSubmit(e) {
 // Router Helper with Strict Dashboard Access Isolation
 export function showPage(sectionId) {
   const landingSections = ['home', 'about', 'services', 'projects', 'contact'];
-  const standalonePages = ['discoverySection', 'authSection', 'dashboardSection'];
+  const standalonePages = ['discoverySection', 'authSection', 'dashboardSection', 'careers'];
 
   if (sectionId && sectionId.startsWith('#')) {
     sectionId = sectionId.substring(1);

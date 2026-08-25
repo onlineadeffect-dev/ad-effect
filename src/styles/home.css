@@ -64,13 +64,16 @@
 }
 
 .logo-text .ad {
+  font-family: "Futura";
   color: #111111;
-  font-weight: 900;
+  font-weight: 500;
 }
 
 .logo-text .effect {
+  font-style: italic;
+  font-family: "Futura";
   color: var(--primary-red);
-  font-weight: 700;
+  font-weight: 400;
 }
 
 /* 3 Dots Container & Animations */
@@ -130,11 +133,11 @@
 }
 
 .slogan-text {
+  font-family: "Futura";
   font-size: 1.6rem;
-  font-weight: 600;
+  font-weight: 100;
   color: var(--primary-red);
   letter-spacing: 0.45em;
-  text-transform: uppercase;
   overflow: hidden;
   white-space: nowrap;
   border-right: 2px solid transparent;

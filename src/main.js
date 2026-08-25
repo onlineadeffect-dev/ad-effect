@@ -17,9 +17,13 @@ import { initAuth, showPage } from './scripts/auth.js';
 import { initDiscovery } from './scripts/discovery.js';
 import { initBookingWizard } from './scripts/bookingWizard.js';
 import { initDashboard } from './scripts/dashboard.js';
+import { initCareers, loadCareers } from './scripts/careers.js';
 
 // Expose showPage to window object for inline click handlers
-window.showPage = showPage;
+window.showPage = function(pageId) {
+  showPage(pageId);
+  if (pageId === 'careers') loadCareers();
+};
 
 document.addEventListener('DOMContentLoaded', () => {
   // Initialize existing animation & menu scripts
@@ -34,6 +38,9 @@ document.addEventListener('DOMContentLoaded', () => {
   initDiscovery();
   initBookingWizard();
   initDashboard();
+
+  // careers section
+  initCareers();
 
   // Navigation link active states observer
   const sections = document.querySelectorAll('section');
