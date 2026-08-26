@@ -269,7 +269,7 @@ async function handleStep1Submit() {
     return;
   }
 
-  const validation = await validateBookingDates(bookingState.billboard_id, startDate, endDate);
+  const validation = await validateBookingDates(bookingState.billboard_id, startDate, endDate, activeBillboard?.size);
   if (!validation.valid) {
     if (warningBox) {
       warningBox.textContent = validation.message || 'Unavailable or unsuitable time frame, please choose another';

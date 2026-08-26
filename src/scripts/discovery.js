@@ -7,12 +7,16 @@ let allBillboards = [];
 let activeFilters = {
   searchQuery: '',
   locations: [],
-  types: [],
+  structures: [],
   availability: [],
   sizes: []
 };
 
 export async function initDiscovery() {
+
+  allBillboards = await fetchBillboards();
+  console.log('Structure values:', [...new Set(allBillboards.map(b => b.structure))]);
+
   const container = document.getElementById('billboardsGrid');
   if (!container) return;
 
@@ -83,8 +87,8 @@ function collectFilterModalInputs() {
     document.querySelectorAll('input[name="filter_location"]:checked')
   ).map(cb => cb.value);
 
-  activeFilters.types = Array.from(
-    document.querySelectorAll('input[name="filter_type"]:checked')
+  activeFilters.structures = Array.from(
+    document.querySelectorAll('input[name="filter_structure"]:checked')
   ).map(cb => cb.value);
 
   activeFilters.availability = Array.from(
@@ -104,7 +108,7 @@ function resetFilterInputs() {
   activeFilters = {
     searchQuery: activeFilters.searchQuery,
     locations: [],
-    types: [],
+    structures: [],
     availability: [],
     sizes: []
   };
@@ -113,7 +117,7 @@ function resetFilterInputs() {
 function applyFilters() {
   const filtered = allBillboards.filter(b => {
     const locStr = (b.location || '').toLowerCase();
-    const typeStr = (b.type || '').toLowerCase();
+    const typeStr = (b.structure || '').toLowerCase();
     const idStr = (b.billboard_id || '').toLowerCase();
     const availStr = (typeof b.is_available === 'boolean' ? (b.is_available ? 'available' : 'unavailable') : (b.is_available || '')).toLowerCase();
     const sizeStr = (b.size || '').replace(/\s+/g, '').toLowerCase();
@@ -136,8 +140,8 @@ function applyFilters() {
     }
 
     // 3. Type filter
-    if (activeFilters.types.length > 0) {
-      const matchType = activeFilters.types.some(t => 
+    if (activeFilters.structures.length > 0) {
+      const matchType = activeFilters.structures.some(t => 
         typeStr.includes(t.toLowerCase())
       );
       if (!matchType) return false;
@@ -202,7 +206,7 @@ function renderBillboards(list) {
           </div>
           <div class="card-location">${b.location || 'North Lebanon / Network'}</div>
           <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 8px;">
-            <span style="font-size: 0.85rem; font-weight: 700; color: #666; text-transform: uppercase;">${b.type || 'Billboard'}</span>
+            <span style="font-size: 0.85rem; font-weight: 700; color: #666; text-transform: uppercase;">${b.structure || 'Billboard'}</span>
             <span style="font-weight: 900; color: var(--primary-red); font-size: 1.15rem;">${b.price}</span>
           </div>
           <button class="btn-card-action ${!isAvail ? 'soon' : ''}" data-id="${b.billboard_id}" style="margin-top: 14px;">

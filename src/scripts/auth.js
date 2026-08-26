@@ -25,6 +25,14 @@ export function setCurrentUser(user) {
 
 export function initAuth() {
   const btnGoToDashboard = document.getElementById('btnGoToDashboard');
+  const btnForgotPassword = document.getElementById('btnForgotPassword');
+
+  if (btnForgotPassword) {
+    btnForgotPassword.addEventListener('click', (e) => {
+      e.preventDefault();
+      handleForgotPassword();
+    });
+  }
 
   if (btnGoToDashboard) {
     btnGoToDashboard.addEventListener('click', (e) => {
@@ -62,8 +70,47 @@ export function initAuth() {
     });
   }
 
+  // Handle password reset redirect from email link
+  const urlParams = new URLSearchParams(window.location.search);
+  if (urlParams.get('reset') === 'true') {
+    showPage('authSection');
+    toggleAuthMode('signin'); // or show a dedicated reset form
+    showAuthSuccess('You can now set a new password — Supabase handles this via your account settings page.');
+  }
+
   // Initial routing setup on page load
   showPage('home');
+}
+
+async function handleForgotPassword() {
+  const email = document.getElementById('signinEmail')?.value.trim();
+
+  if (!email) {
+    showAuthError('Please enter your email address above, then click "Forgot your password?"');
+    return;
+  }
+
+  const sb = getSupabase();
+  if (!sb) {
+    showAuthError('Unable to connect. Please try again later.');
+    return;
+  }
+
+  try {
+    const { error } = await sb.auth.resetPasswordForEmail(email, {
+      redirectTo: window.location.origin + '/?reset=true', // adjust this path if needed
+    });
+
+    if (error) {
+      showAuthError(`Could not send reset email: ${error.message}`);
+      return;
+    }
+
+    showAuthSuccess('Password reset email sent! Check your inbox and follow the link.');
+  } catch (err) {
+    showAuthError('Something went wrong. Please try again.');
+    console.error('Forgot password error:', err);
+  }
 }
 
 export function handleDashboardNavigation() {

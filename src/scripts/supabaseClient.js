@@ -49,7 +49,7 @@ export function normalizeBillboards(list) {
       price: displayPrice || '$ 1,000',
       numericPrice: typeof b.price === 'number' ? b.price : parseFloat((b.price || '').toString().replace(/[^0-9.]/g, '')) || 0,
       image_url: b.image_url || 'https://images.unsplash.com/photo-1542751371-adc38448a05e?auto=format&fit=crop&w=800&q=80',
-      type: b.type || 'Unipole',
+      type: b.structure || 'Unipole',
       is_available: statusText,
       available_until: b.available_until || null
     };
@@ -79,6 +79,17 @@ const INITIAL_BILLBOARDS = [
     type: 'Unipole',
     is_available: 'Available Soon',
     available_until: '2026-09-01'
+  },
+  {
+    billboard_id: 'P003-C',
+    location: 'Mina Road, Tripoli',
+    maps_url: 'https://maps.google.com',
+    size: '3:4',
+    price: '$ 600',
+    image_url: 'https://images.unsplash.com/photo-1542751371-adc38448a05e?auto=format&fit=crop&w=800&q=80',
+    type: 'Portrait Billboard',
+    is_available: 'Available',
+    available_until: null
   }
 ];
 
@@ -331,16 +342,43 @@ export async function fetchConfirmedBookings(billboardId) {
   return confirmed;
 }
 
-export async function validateBookingDates(billboardId, startTimeStr, endTimeStr) {
-  const pendingBookings = await fetchPendingBookings();
-  const confirmedBookings = await fetchConfirmedBookings(billboardId);
-
+export async function validateBookingDates(billboardId, startTimeStr, endTimeStr, billboardSize = null) {
   const start = new Date(startTimeStr).getTime();
   const end = new Date(endTimeStr).getTime();
 
   if (isNaN(start) || isNaN(end) || start >= end) {
     return { valid: false, message: 'Start date must be before end date.' };
   }
+
+  const startDate = new Date(startTimeStr);
+  const endDate = new Date(endTimeStr);
+  const diffTime = endDate.getTime() - startDate.getTime();
+  const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
+
+  const normalizedSize = (billboardSize || '').toString().toLowerCase().replace(/\s+/g, '');
+  const is3x4 = normalizedSize.includes('3:4') || normalizedSize.includes('3x4') || normalizedSize.includes('3/4');
+
+  if (is3x4) {
+    if (diffDays < 7) {
+      return {
+        valid: false,
+        message: 'Billboards of size 3:4 require a minimum booking period of 1 week (7 days).'
+      };
+    }
+  } else {
+    const minMonthEnd = new Date(startDate);
+    minMonthEnd.setMonth(minMonthEnd.getMonth() + 1);
+
+    if (diffDays < 28 && endDate < minMonthEnd) {
+      return {
+        valid: false,
+        message: 'Billboards must be booked for a minimum period of 1 month.'
+      };
+    }
+  }
+
+  const pendingBookings = await fetchPendingBookings();
+  const confirmedBookings = await fetchConfirmedBookings(billboardId);
 
   // Combine pending and confirmed bookings for this billboard
   const allBookings = [
