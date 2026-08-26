@@ -202,7 +202,7 @@ ${c}`),u=`mailto:${d}?subject=${g}&body=${b}`;window.location.href=u,alert("Than
     `}).join(""),t.querySelectorAll(".quotation-card").forEach(i=>{i.addEventListener("click",()=>{const o=i.getAttribute("data-quotation-id"),a=C.find(s=>String(s.id)===String(o))||C[0];a&&Oe(a)})})}function Oe(e){const t=document.getElementById("quotationModal"),n=document.getElementById("quotationDocContent");if(!t||!n)return;const i=new Date(e.created_at||Date.now()).toLocaleDateString("en-US",{month:"long",day:"numeric",year:"numeric"}),o=typeof e.printing_cost=="number"?e.printing_cost:parseFloat(e.printing_cost||0),a=typeof e.total_cost_wo_printing=="number"?e.total_cost_wo_printing:parseFloat(e.total_cost_wo_printing||0),s=typeof e.total_cost_with_printing=="number"?e.total_cost_with_printing:parseFloat(e.total_cost_with_printing||0);n.innerHTML=`
     <div class="quotation-doc-header">
       <div>
-        <div style="font-size: 2.2rem; font-weight: 900; color: #111;"><span style="color: var(--primary-red);">ad</span>effect</div>
+        <div style="font-size: 2.2rem; font-weight: 900; color: #111;"><span>ad</span><span style="color: var(--primary-red);">effect<span></div>
         <div style="font-size: 0.85rem; font-weight: 700; color: var(--primary-red); letter-spacing: 2px;">CONNECTING MEDIA</div>
         <div style="font-size: 0.85rem; color: #666; margin-top: 4px;">North Lebanon | Outdoor Advertising</div>
       </div>
