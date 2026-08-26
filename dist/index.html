@@ -10,8 +10,8 @@
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
   <!-- Supabase JS CDN Fallback -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script type="module" crossorigin src="/assets/index-BgDPyMT2.js"></script>
-  <link rel="stylesheet" crossorigin href="/assets/index-Dg02C0Lu.css">
+  <script type="module" crossorigin src="/assets/index-tcBmx1-x.js"></script>
+  <link rel="stylesheet" crossorigin href="/assets/index-D0tkekBf.css">
 </head>
 <body>
 
@@ -173,14 +173,14 @@
         <div>
           <h3 class="filter-column-h3">Type</h3>
           <div class="checkbox-list">
-            <label class="checkbox-label"><input type="checkbox" name="filter_type" value="BACKLIT" /> BACKLIT</label>
-            <label class="checkbox-label"><input type="checkbox" name="filter_type" value="MEGAPOLE" /> MEGAPOLE</label>
-            <label class="checkbox-label"><input type="checkbox" name="filter_type" value="Bridge" /> Bridge</label>
-            <label class="checkbox-label"><input type="checkbox" name="filter_type" value="Lightpole Banners" /> Lightpole Banners</label>
-            <label class="checkbox-label"><input type="checkbox" name="filter_type" value="Unipole" /> Unipole</label>
-            <label class="checkbox-label"><input type="checkbox" name="filter_type" value="Minipole" /> Minipole</label>
-            <label class="checkbox-label"><input type="checkbox" name="filter_type" value="Wallbanner" /> Wallbanner</label>
-            <label class="checkbox-label"><input type="checkbox" name="filter_type" value="Rooftop" /> Rooftop</label>
+            <label class="checkbox-label"><input type="checkbox" name="filter_structure" value="BACKLIT" /> Backlit</label>
+            <label class="checkbox-label"><input type="checkbox" name="filter_structure" value="MEGAPOLE" /> Megapole</label>
+            <label class="checkbox-label"><input type="checkbox" name="filter_structure" value="Bridge" /> Bridge</label>
+            <label class="checkbox-label"><input type="checkbox" name="filter_structure" value="Lightpole Banners" /> Lightpole Banners</label>
+            <label class="checkbox-label"><input type="checkbox" name="filter_structure" value="Unipole" /> Unipole</label>
+            <label class="checkbox-label"><input type="checkbox" name="filter_structure" value="Minipole" /> Minipole</label>
+            <label class="checkbox-label"><input type="checkbox" name="filter_structure" value="Wallsign" /> Wallsign</label>
+            <label class="checkbox-label"><input type="checkbox" name="filter_structure" value="Rooftop" /> Rooftop</label>
           </div>
         </div>
 
@@ -199,7 +199,7 @@
           <h3 class="filter-column-h3">Sizes (meters)</h3>
           <div class="checkbox-list">
             <label class="checkbox-label"><input type="checkbox" name="filter_size" value="W: 14.7 - H: 43" /> W: 14.7 - H: 43</label>
-            <label class="checkbox-label"><input type="checkbox" name="filter_size" value="W: 8 - H: 3" /> W: 8 - H: 3</label>
+            <label class="checkbox-label"><input type="checkbox" name="filter_size" value="W: 80 - H: 30" /> W: 80 - H: 30</label>
             <label class="checkbox-label"><input type="checkbox" name="filter_size" value="W: 10 - H: 24" /> W: 10 - H: 24</label>
             <label class="checkbox-label"><input type="checkbox" name="filter_size" value="W: 5 - H: 16" /> W: 5 - H: 16</label>
             <label class="checkbox-label"><input type="checkbox" name="filter_size" value="W: 140 - H: 80" /> W: 140 - H: 80</label>
@@ -501,31 +501,12 @@
     </div>
 
     <form id="signInForm">
-  <!--<div class="auth-field-group" style="margin-bottom: 20px;">
-    <label>Email Address</label>
-    <input type="email" id="signinEmail" class="auth-input-field" placeholder="client@example.com" required />
-  </div>-->
-
-  
-
     <!-- Sign In Box -->
     <div id="signInBox" class="auth-body-form" style="display: none;">
       <div style="background: white; border: 3px solid #111; box-shadow: 8px 8px 0px #111; border-radius: 24px; padding: 40px; max-width: 500px; margin: 0 auto;">
         <h2 style="font-size: 2rem; font-weight: 900; color: var(--primary-red); margin-bottom: 8px;">Client Log In</h2>
         <p style="color: #666; margin-bottom: 24px; font-size: 0.95rem;">Enter your verified client email address to access your dashboard.</p>
         
-        <!--<form id="signInForm">
-          <div class="auth-field-group" style="margin-bottom: 20px;">
-            <label>Email Address</label>
-            <input type="email" id="signinEmail" class="auth-input-field" placeholder="client@example.com" required />
-          </div>
-
-          <button type="submit" class="btn-auth-submit" style="font-size: 1.1rem; padding: 14px;">Log In to Dashboard</button>
-          
-          <p style="text-align: center; margin-top: 16px; font-weight: 600;">
-            Don't have an account? <a href="#" id="btnSwitchToSignUp" style="color: var(--primary-red); text-decoration: underline;">Sign Up Here</a>
-          </p>
-        </form>-->
 
         <form id="signInForm">
           <div class="auth-field-group" style="margin-bottom: 20px;">
@@ -540,6 +521,14 @@
           </div>
 
           <button type="submit" class="btn-auth-submit" style="font-size: 1.1rem; padding: 14px;">Log In to Dashboard</button>
+
+
+          <!-- FORGOT PASSWORD -->
+          <p style="text-align: center; margin-top: 12px;">
+            <a href="#" id="btnForgotPassword" style="color: #666; font-size: 0.9rem; text-decoration: underline;">Forgot your password?</a>
+          </p>
+
+          
           
           <p style="text-align: center; margin-top: 16px; font-weight: 600;">
             Don't have an account? <a href="#" id="btnSwitchToSignUp" style="color: var(--primary-red); text-decoration: underline;">Sign Up Here</a>
@@ -870,7 +859,6 @@
                 <circle cx="21" cy="21" r="15.91549430918954" fill="transparent" stroke="#F97316" stroke-width="6" stroke-dasharray="15 85" stroke-dashoffset="40"></circle>
                 <g class="chart-text">
                   <text x="50%" y="46%" dominant-baseline="middle" text-anchor="middle" font-size="6" font-weight="900" fill="#111">N/A</text>
-                  <text x="68%" y="54%" dominant-baseline="middle" text-anchor="middle" font-size="3" font-weight="800" fill="#F97316">15%</text>
                 </g>
               </svg>
             </div>
@@ -882,7 +870,7 @@
               </div>
               <div class="legend-item">
                 <div class="legend-dot" style="background-color: #F97316;"></div>
-                <span>Print Advertising</span>
+                <span>Printing Services</span>
               </div>
             </div>
           </div>
