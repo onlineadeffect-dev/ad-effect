@@ -79,10 +79,17 @@ document.addEventListener('DOMContentLoaded', () => {
 
   sections.forEach(section => sectionObserver.observe(section));
 
+  // Disable automatic scroll restoration on load
+  if ('scrollRestoration' in history) {
+    history.scrollRestoration = 'manual';
+  }
+
   // Initial page view check based on URL hash
   const initialHash = window.location.hash ? window.location.hash.replace('#', '') : 'home';
   if (initialHash && ['discoverySection', 'authSection', 'dashboardSection'].includes(initialHash)) {
     showPage(initialHash);
+  } else {
+    window.scrollTo(0, 0);
   }
 
   // Listen to browser hash change event
