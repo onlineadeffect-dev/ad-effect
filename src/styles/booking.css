@@ -785,3 +785,108 @@
   from { transform: translateX(100%); opacity: 0; }
   to { transform: translateX(0); opacity: 1; }
 }
+
+/* Phone-only smaller fonts for Billboards Section */
+@media (max-width: 480px) {
+  .discovery-title {
+    font-size: 1.5rem;
+    margin-bottom: 16px;
+  }
+
+  .search-bar-input {
+    font-size: 0.85rem;
+  }
+
+  .billboard-card .card-title {
+    font-size: 0.95rem;
+  }
+
+  .billboard-card .card-status {
+    font-size: 0.7rem;
+  }
+
+  .billboard-card .card-location {
+    font-size: 0.78rem;
+    margin-bottom: 12px;
+  }
+
+  .billboard-tag {
+    font-size: 0.75rem;
+    padding: 3px 8px;
+  }
+
+  .billboard-tag span {
+    font-size: 0.62rem;
+  }
+
+  .btn-card-action {
+    font-size: 0.82rem;
+    padding: 8px;
+  }
+
+  /* Filter Modal Fonts on Phone */
+  .filter-modal-content h2,
+  .filter-title {
+    font-size: 1.3rem;
+  }
+
+  .filter-group-title,
+  .filter-section h3 {
+    font-size: 0.85rem;
+  }
+
+  .filter-option label {
+    font-size: 0.8rem;
+  }
+
+  /* Billboard Detail View Modal Fonts on Phone */
+  .detail-title,
+  #detailBillboardId {
+    font-size: 1.3rem;
+  }
+
+  .detail-price {
+    font-size: 1.2rem;
+  }
+
+  .spec-item label {
+    font-size: 0.75rem;
+  }
+
+  .spec-item span {
+    font-size: 0.85rem;
+  }
+
+  .btn-maps-360 {
+    font-size: 0.82rem;
+  }
+
+  /* Billboard Booking Wizard Modals Fonts on Phone */
+  .wizard-header-banner h2 {
+    font-size: 1.3rem;
+  }
+
+  .wizard-header-banner p {
+    font-size: 0.8rem;
+  }
+
+  .date-input-group label {
+    font-size: 0.82rem;
+  }
+
+  #summaryBillboardId {
+    font-size: 1.3rem !important;
+  }
+
+  .summary-notice-box {
+    font-size: 0.82rem;
+    padding: 14px;
+  }
+
+  .btn-wizard-next,
+  .btn-wizard-confirm {
+    font-size: 0.95rem;
+    padding: 12px;
+  }
+}
+
