@@ -1,0 +1,341 @@
+/* LED Screen Section Styling */
+
+.led-screen-section {
+  position: relative;
+  width: 100%;
+  height: 220vh; /* Scroll height for pin duration */
+  background-color: #070506;
+}
+
+.led-screen-sticky {
+  position: sticky;
+  top: 0;
+  width: 100%;
+  height: 100vh;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Perforated Mesh Metal Sheet Background */
+.led-screen-bg {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  background-color: #080506;
+  background-image: radial-gradient(circle at 45% 45%, rgba(255, 175, 180, 0.45) 0%, rgba(160, 45, 55, 0.3) 28%, rgba(25, 12, 14, 0.95) 55%, #050304 75%);
+  background-image: 
+    url("data:image/svg+xml,%3Csvg width='34' height='34' viewBox='0 0 34 34' xmlns='http://www.w3.org/2000/svg'%3E%3Cdefs%3E%3CradialGradient id='hole' cx='35%25' cy='35%25' r='60%25'%3E%3Cstop offset='0%25' stop-color='%23f5c2c5'/%3E%3Cstop offset='25%25' stop-color='%23b84d56'/%3E%3Cstop offset='55%25' stop-color='%23451b20'/%3E%3Cstop offset='85%25' stop-color='%23120608'/%3E%3Cstop offset='100%25' stop-color='%23000000'/%3E%3C/radialGradient%3E%3C/defs%3E%3Crect width='34' height='34' fill='%23080506'/%3E%3Ccircle cx='17' cy='17' r='9.5' fill='url(%23hole)'/%3E%3C/svg%3E");
+  background-size: 34px 34px;
+  background-position: center center;
+}
+
+/* Vignette overlay for realistic ambient shadows */
+.led-screen-vignette {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  background: radial-gradient(circle at 50% 50%, rgba(18, 5, 7, 0.25) 0%, rgba(5, 2, 3, 0.85) 75%, #020102 100%);
+  pointer-events: none;
+}
+
+/* Scroll Content Container */
+.led-screen-content {
+  position: relative;
+  z-index: 3;
+  width: 100%;
+  max-width: 1280px;
+  height: 100%;
+  margin: 0 auto;
+  padding: 0 40px;
+  box-sizing: border-box;
+}
+
+/* Page 1 (Intro Page) */
+.led-page-1 {
+  position: absolute;
+  top: 0;
+  left: 40px;
+  right: 40px;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: flex-start;
+  will-change: transform, opacity;
+  transition: transform 0.05s linear;
+}
+
+.led-title-row {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  flex-wrap: wrap;
+}
+
+.led-title-white {
+  font-family: 'Montserrat', -apple-system, sans-serif;
+  font-size: clamp(2.8rem, 5.5vw, 5.2rem);
+  font-weight: 900;
+  color: #FFFFFF;
+  line-height: 1.05;
+  letter-spacing: -1.5px;
+  margin: 0;
+}
+
+/* Red accent badge next to ADEFFECT */
+.led-badge-accent {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 52px;
+  height: 20px;
+  background-color: #E31E24;
+  border-radius: 3px;
+  position: relative;
+}
+
+.led-badge-accent::after {
+  content: '';
+  width: 22px;
+  height: 3px;
+  background-color: #FFFFFF;
+  border-radius: 1.5px;
+}
+
+.led-title-red {
+  font-family: 'Montserrat', -apple-system, sans-serif;
+  font-size: clamp(3.2rem, 6.2vw, 5.8rem);
+  font-weight: 900;
+  color: #D72638;
+  line-height: 1.05;
+  letter-spacing: -1.5px;
+  margin: 6px 0 0 0;
+}
+
+.led-subtitle {
+  font-family: 'Montserrat', -apple-system, sans-serif;
+  font-size: clamp(1.2rem, 2.2vw, 1.85rem);
+  font-weight: 700;
+  color: #FFFFFF;
+  margin: 28px 0 45px 0;
+  letter-spacing: -0.3px;
+}
+
+.led-bullets {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.led-bullet {
+  font-family: 'Montserrat', -apple-system, sans-serif;
+  font-size: clamp(1.3rem, 2.3vw, 2.0rem);
+  font-weight: 800;
+  color: #D72638;
+  line-height: 1.25;
+  letter-spacing: -0.2px;
+}
+
+/* Page 2 (Pricing Page) */
+.led-page-2 {
+  position: absolute;
+  top: 0;
+  left: 40px;
+  right: 40px;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  will-change: transform, opacity;
+  transition: transform 0.05s linear;
+}
+
+/* Pricing Header with Dual Offset Layer */
+.led-pricing-title-container {
+  position: relative;
+  margin-bottom: 48px;
+  text-align: center;
+}
+
+.led-pricing-title-stack {
+  position: relative;
+  display: inline-block;
+}
+
+.led-pricing-title-bg {
+  font-family: 'Montserrat', -apple-system, sans-serif;
+  font-size: clamp(3.2rem, 6vw, 5.2rem);
+  font-weight: 900;
+  color: #D72638;
+  letter-spacing: 2px;
+  position: absolute;
+  top: 6px;
+  left: -7px;
+  white-space: nowrap;
+  user-select: none;
+}
+
+.led-pricing-title-fg {
+  position: relative;
+  font-family: 'Montserrat', -apple-system, sans-serif;
+  font-size: clamp(3.2rem, 6vw, 5.2rem);
+  font-weight: 900;
+  color: #FFFFFF;
+  letter-spacing: 2px;
+  white-space: nowrap;
+}
+
+/* Grid of 4 Pricing Cards */
+.led-cards-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 22px;
+  width: 100%;
+  max-width: 1220px;
+}
+
+/* Card Styling */
+.led-card-wrapper {
+  position: relative;
+}
+
+/* White offset back border layer */
+.led-card-wrapper::before {
+  content: '';
+  position: absolute;
+  top: -6px;
+  left: -6px;
+  right: 6px;
+  bottom: 6px;
+  border-radius: 28px;
+  border-left: 3.5px solid #FFFFFF;
+  border-top: 3.5px solid #FFFFFF;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.led-card {
+  position: relative;
+  z-index: 2;
+  background-color: #0b0607;
+  border: 2.5px solid #D72638;
+  border-radius: 26px;
+  padding: 38px 20px 34px 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.7);
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+  height: 100%;
+  box-sizing: border-box;
+}
+
+.led-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 18px 40px rgba(215, 38, 56, 0.25);
+}
+
+.led-card-duration {
+  font-family: 'Montserrat', -apple-system, sans-serif;
+  font-size: 1.55rem;
+  font-weight: 900;
+  color: #FFFFFF;
+  letter-spacing: 0.5px;
+  margin-bottom: 12px;
+  text-transform: uppercase;
+}
+
+.led-card-price {
+  font-family: 'Montserrat', -apple-system, sans-serif;
+  font-size: 1.85rem;
+  font-weight: 800;
+  color: #FFFFFF;
+  margin-bottom: 28px;
+}
+
+.led-card-icon {
+  width: 44px;
+  height: 44px;
+  margin-bottom: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.led-card-desc {
+  font-family: 'Montserrat', -apple-system, sans-serif;
+  font-size: 0.85rem;
+  font-weight: 800;
+  color: #FFFFFF;
+  line-height: 1.45;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  margin-top: auto;
+}
+
+/* Responsive styles */
+@media (max-width: 1024px) {
+  .led-cards-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 24px 20px;
+    max-width: 680px;
+  }
+
+  .led-card-wrapper::before {
+    top: -5px;
+    left: -5px;
+  }
+
+  .led-pricing-title-container {
+    margin-bottom: 32px;
+  }
+}
+
+@media (max-width: 640px) {
+  .led-screen-content {
+    padding: 0 20px;
+  }
+
+  .led-page-1, .led-page-2 {
+    left: 20px;
+    right: 20px;
+  }
+
+  .led-cards-grid {
+    grid-template-columns: 1fr;
+    gap: 16px;
+    max-width: 320px;
+  }
+
+  .led-card {
+    padding: 24px 16px 20px 16px;
+  }
+
+  .led-card-duration {
+    font-size: 1.3rem;
+    margin-bottom: 6px;
+  }
+
+  .led-card-price {
+    font-size: 1.5rem;
+    margin-bottom: 16px;
+  }
+
+  .led-card-icon {
+    width: 36px;
+    height: 36px;
+    margin-bottom: 16px;
+  }
+
+  .led-card-desc {
+    font-size: 0.78rem;
+  }
+
+  .led-subtitle {
+    margin: 18px 0 28px 0;
+  }
+}

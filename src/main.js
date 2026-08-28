@@ -3,6 +3,7 @@ import './styles/home.css';
 import './styles/about.css';
 import './styles/services.css';
 import './styles/projects.css';
+import './styles/led_screen.css';
 import './styles/contact.css';
 import './styles/booking.css';
 import './styles/dashboard.css';
@@ -11,6 +12,7 @@ import { initHomeAnimation } from './scripts/animation.js';
 import { initCarousel } from './scripts/carousel.js';
 import { initServices } from './scripts/services.js';
 import { initProjectsAnimation } from './scripts/projects.js';
+import { initLedScreen } from './scripts/led_screen.js';
 import { initContactForm } from './scripts/contact.js';
 
 import { initAuth, showPage } from './scripts/auth.js';
@@ -31,6 +33,7 @@ document.addEventListener('DOMContentLoaded', () => {
   initCarousel();
   initServices();
   initProjectsAnimation();
+  initLedScreen();
   initContactForm();
 
   // Initialize Billboard Booking System Modules
