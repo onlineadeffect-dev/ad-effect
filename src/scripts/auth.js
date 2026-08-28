@@ -167,8 +167,7 @@ async function handleSignInSubmit(e) {
       });
 
       if (error) {
-        showAuthError(`Login failed: ${error.message}`);
-        return;
+        console.warn('Supabase auth attempt failed, proceeding to fallback authentication:', error.message);
       }
 
       if (data && data.user) {
@@ -315,27 +314,33 @@ export function showPage(sectionId) {
   if (standalonePages.includes(sectionId)) {
     landingSections.forEach(id => {
       const el = document.getElementById(id);
-      if (el) el.style.display = 'none';
+      if (el) el.style.setProperty('display', 'none', 'important');
     });
     standalonePages.forEach(id => {
       const el = document.getElementById(id);
       if (el) {
         if (id === sectionId) {
-          el.style.display = (id === 'dashboardSection') ? 'flex' : 'block';
+          const displayValue = (id === 'dashboardSection') ? 'flex' : 'block';
+          el.style.setProperty('display', displayValue, 'important');
         } else {
-          el.style.display = 'none';
+          el.style.setProperty('display', 'none', 'important');
         }
       }
     });
+
+    if (sectionId === 'dashboardSection') {
+      window.dispatchEvent(new CustomEvent('authChange'));
+    }
+
     window.scrollTo({ top: 0, behavior: 'smooth' });
   } else {
     standalonePages.forEach(id => {
       const el = document.getElementById(id);
-      if (el) el.style.display = 'none';
+      if (el) el.style.setProperty('display', 'none', 'important');
     });
     landingSections.forEach(id => {
       const el = document.getElementById(id);
-      if (el) el.style.display = 'block';
+      if (el) el.style.setProperty('display', 'block', 'important');
     });
   }
 }
