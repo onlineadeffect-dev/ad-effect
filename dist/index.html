@@ -11,8 +11,8 @@
   <link rel="icon" href="data:,">
   <!-- Supabase JS CDN Fallback -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script type="module" crossorigin src="/assets/index-9N_pwhJR.js"></script>
-  <link rel="stylesheet" crossorigin href="/assets/index-LR82W7ma.css">
+  <script type="module" crossorigin src="/assets/index-BejHJqxo.js"></script>
+  <link rel="stylesheet" crossorigin href="/assets/index-DA5Mw9fo.css">
 </head>
 <body>
 
@@ -840,11 +840,11 @@
 
 </section>
 
-<!-- ============================================================
-     CV APPLICATION MODAL
-     ============================================================ -->
-<div id="cvModal" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.55); z-index: 9999; align-items: center; justify-content: center; padding: 20px;">
-  <div style="background: #fff; border: 3px solid #111; box-shadow: 10px 10px 0px #111; border-radius: 24px; padding: 40px; max-width: 520px; width: 100%; position: relative;">
+  <!-- ============================================================
+      CV APPLICATION MODAL
+      ============================================================ -->
+  <div id="cvModal" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.55); z-index: 9999; align-items: center; justify-content: center; padding: 20px;">
+    <div style="background: #fff; border: 3px solid #111; box-shadow: 10px 10px 0px #111; border-radius: 24px; padding: 40px; max-width: 520px; width: 100%; position: relative;">
 
     <!-- Close -->
     <button id="btnCloseCvModal" style="position: absolute; right: 20px; top: 16px; background: none; border: none; font-size: 1.8rem; font-weight: 900; color: #111; cursor: pointer; line-height: 1;">&times;</button>
@@ -900,21 +900,21 @@
       onmouseover="this.style.transform='translate(-2px,-2px)'; this.style.boxShadow='6px 6px 0px #111'"
       onmouseout="this.style.transform=''; this.style.boxShadow='4px 4px 0px #111'"
     >Send Application</button>
+    </div>
   </div>
-</div>
 
 <!-- Success Modal -->
-<div id="cvSuccessModal" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.55); z-index: 10000; align-items: center; justify-content: center; padding: 20px;">
-  <div style="background: #fff; border: 3px solid #111; box-shadow: 10px 10px 0px #111; border-radius: 24px; padding: 48px 40px; max-width: 480px; width: 100%; text-align: center;">
-    <div style="width: 72px; height: 72px; background: #DCFCE7; border-radius: 50%; border: 2.5px solid #16a34a; color: #16a34a; font-size: 2.2rem; display: grid; place-content: center; margin: 0 auto 20px;">✓</div>
-    <h2 style="font-size: 1.7rem; font-weight: 900; color: #111; margin-bottom: 10px;">Application Sent!</h2>
-    <p style="color: #555; font-weight: 600; line-height: 1.6; margin-bottom: 28px;">Thanks for applying! Our team will review your CV and reach out to you shortly.</p>
-    <button onclick="closeCvSuccessModal()"
-      style="background: var(--primary-red, #D72638); color: #fff; border: 2.5px solid #111; border-radius: 12px; padding: 13px 32px; font-family: 'Montserrat', sans-serif; font-weight: 800; font-size: 0.95rem; cursor: pointer; box-shadow: 4px 4px 0px #111;">
-      Back to Careers
-    </button>
+  <div id="cvSuccessModal" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.55); z-index: 10000; align-items: center; justify-content: center; padding: 20px;">
+    <div style="background: #fff; border: 3px solid #111; box-shadow: 10px 10px 0px #111; border-radius: 24px; padding: 48px 40px; max-width: 480px; width: 100%; text-align: center;">
+      <div style="width: 72px; height: 72px; background: #DCFCE7; border-radius: 50%; border: 2.5px solid #16a34a; color: #16a34a; font-size: 2.2rem; display: grid; place-content: center; margin: 0 auto 20px;">✓</div>
+      <h2 style="font-size: 1.7rem; font-weight: 900; color: #111; margin-bottom: 10px;">Application Sent!</h2>
+      <p style="color: #555; font-weight: 600; line-height: 1.6; margin-bottom: 28px;">Thanks for applying! Our team will review your CV and reach out to you shortly.</p>
+      <button onclick="closeCvSuccessModal()"
+        style="background: var(--primary-red, #D72638); color: #fff; border: 2.5px solid #111; border-radius: 12px; padding: 13px 32px; font-family: 'Montserrat', sans-serif; font-weight: 800; font-size: 0.95rem; cursor: pointer; box-shadow: 4px 4px 0px #111;">
+        Back to Careers
+      </button>
+    </div>
   </div>
-</div>
 
 
   
@@ -1060,7 +1060,7 @@
         </div>
       </div>
     </main>
-  </section>
+    </section>
 
   <!-- QUOTATION DETAIL & PRINT/PDF MODAL -->
   <div id="quotationModal" class="modal-overlay">
@@ -1088,8 +1088,6 @@
       </div>
     </div>
   </div>
-
-
  
 
   <!-- Toast Notification Container -->
