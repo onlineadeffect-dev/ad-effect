@@ -167,7 +167,8 @@ async function handleSignInSubmit(e) {
       });
 
       if (error) {
-        console.warn('Supabase auth attempt failed, proceeding to fallback authentication:', error.message);
+        showAuthError(error.message || 'Invalid email or password.');
+        return;
       }
 
       if (data && data.user) {
@@ -178,26 +179,18 @@ async function handleSignInSubmit(e) {
           name: userName,
           status: 'verified'
         };
+      } else {
+        showAuthError('Authentication failed. Please check your credentials.');
+        return;
       }
     } catch (err) {
-      console.warn('Supabase auth exception, checking demo login fallback:', err);
-    }
-  }
-
-  // Fallback demo authentication if Supabase is unreachable or in local testing mode
-  if (!userObj) {
-    if (email.includes('@')) {
-      const userName = email.split('@')[0];
-      userObj = {
-        id: 'usr_' + Date.now(),
-        email: email,
-        name: userName.charAt(0).toUpperCase() + userName.slice(1),
-        status: 'verified'
-      };
-    } else {
-      showAuthError('Invalid email format. Please check your credentials.');
+      console.error('Supabase auth exception:', err);
+      showAuthError('An error occurred during authentication. Please try again.');
       return;
     }
+  } else {
+    showAuthError('Authentication service is unavailable. Please try again later.');
+    return;
   }
 
   // Success: Store user session state
