@@ -1,4 +1,4 @@
-import { submitPendingUser } from './supabaseClient.js';
+import { signUpUser } from './supabaseClient.js';
 import { getSupabase } from './supabaseClient.js';
 
 let currentUser = null;
@@ -251,17 +251,34 @@ function showAuthSuccess(msg) {
   }
 }
 
-// Sign Up Handler
+// Sign Up Handler (ACTUAL SUPABASE SIGN UP)
 async function handleSignUpSubmit(e) {
   e.preventDefault();
 
   const name = document.getElementById('signupName')?.value.trim();
   const businessName = document.getElementById('signupBusiness')?.value.trim();
   const email = document.getElementById('signupEmail')?.value.trim();
+  const website = document.getElementById('signupWebsite')?.value.trim();
   const phone = document.getElementById('signupPhone')?.value.trim();
+  const location = document.getElementById('signupLocation')?.value.trim();
+  const password = document.getElementById('signupPassword')?.value.trim();
+  const confirmPassword = document.getElementById('signupConfirmPassword')?.value.trim();
 
-  if (!name || !businessName || !email || !phone) {
+  const hearAboutCheckboxes = document.querySelectorAll('input[name="hear_about_us"]:checked');
+  const hearAboutUs = Array.from(hearAboutCheckboxes).map(cb => cb.value);
+
+  if (!name || !businessName || !email || !phone || !password || !confirmPassword) {
     alert('Please fill out all required fields.');
+    return;
+  }
+
+  if (password !== confirmPassword) {
+    alert('Passwords do not match. Please re-enter your password.');
+    return;
+  }
+
+  if (password.length < 6) {
+    alert('Password must be at least 6 characters long.');
     return;
   }
 
@@ -269,21 +286,51 @@ async function handleSignUpSubmit(e) {
     user_name: name,
     business_name: businessName,
     email: email,
-    phone_number: phone
+    website: website,
+    phone_number: phone,
+    location: location,
+    password: password,
+    hear_about_us: hearAboutUs
   };
 
-  const result = await submitPendingUser(userData);
+  const btnSubmit = document.getElementById('btnSignUpSubmit');
+  if (btnSubmit) {
+    btnSubmit.disabled = true;
+    btnSubmit.textContent = 'CREATING ACCOUNT...';
+  }
 
-  if (result.success) {
-    const pendingModal = document.getElementById('pendingSuccessModal');
-    if (pendingModal) {
-      pendingModal.classList.add('active');
+  try {
+    const result = await signUpUser(userData);
+
+    if (result.success) {
+      if (result.user) {
+        setCurrentUser(result.user);
+        const greetingEl = document.getElementById('dashboardGreetingName');
+        if (greetingEl) greetingEl.textContent = `Hello, ${result.user.name}`;
+        const sidebarName = document.getElementById('sidebarProfileName');
+        if (sidebarName) sidebarName.textContent = result.user.name;
+      }
+
+      const signUpForm = document.getElementById('signUpForm');
+      if (signUpForm) signUpForm.reset();
+
+      const pendingModal = document.getElementById('pendingSuccessModal');
+      if (pendingModal) {
+        pendingModal.classList.add('active');
+      } else {
+        showPage('dashboardSection');
+      }
     } else {
-      alert('Thank you for registering! Your account registration request is under review.');
-      showPage('home');
+      alert(result.error || 'Failed to create account. Please try again.');
     }
-  } else {
-    alert('Failed to submit registration request.');
+  } catch (err) {
+    console.error('Sign up error:', err);
+    alert('An unexpected error occurred during sign up.');
+  } finally {
+    if (btnSubmit) {
+      btnSubmit.disabled = false;
+      btnSubmit.textContent = 'SIGN UP';
+    }
   }
 }
 

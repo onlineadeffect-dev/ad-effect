@@ -156,45 +156,99 @@ export async function fetchBillboards() {
   return normalizeBillboards(local);
 }
 
-// 2. Submit Sign Up into `pending_users` table
-export async function submitPendingUser(userData) {
+// 2. Actual Supabase Sign Up & insert into `users` table
+export async function signUpUser(userData) {
+  const sb = getSupabase();
+  let createdUserId = null;
 
-  console.log(userData.user_name)
-  
-  const payload = {
+  if (sb) {
+    try {
+      // 1. Create account in Supabase Auth
+      const { data: authData, error: authError } = await sb.auth.signUp({
+        email: userData.email,
+        password: userData.password,
+        options: {
+          data: {
+            full_name: userData.user_name,
+            business_name: userData.business_name
+          }
+        }
+      });
+
+      if (authError) {
+        return { success: false, error: authError.message };
+      }
+
+      createdUserId = authData?.user?.id || `user-${Date.now()}`;
+
+      // 2. Immediately insert account details into `users` table
+      const userPayload = {
+        id: createdUserId,
+        user_name: userData.user_name,
+        name: userData.user_name,
+        business_name: userData.business_name,
+        email: userData.email,
+        website: userData.website || '',
+        phone_number: userData.phone_number,
+        location: userData.location || '',
+        hear_about_us: userData.hear_about_us || [],
+        created_at: new Date().toISOString()
+      };
+
+      const { data: insertData, error: insertError } = await sb.from('users').insert([userPayload]).select();
+      if (insertError) {
+        console.warn('Supabase insert users warning:', insertError);
+      }
+
+      saveLocalUser(userPayload);
+      return {
+        success: true,
+        user: {
+          id: createdUserId,
+          email: userData.email,
+          name: userData.user_name,
+          status: 'verified'
+        }
+      };
+    } catch (e) {
+      console.error('Supabase sign up exception:', e);
+      return { success: false, error: e.message || 'An error occurred during sign up.' };
+    }
+  }
+
+  // Fallback to local storage if Supabase is unavailable
+  createdUserId = `user-${Date.now()}`;
+  const userPayload = {
+    id: createdUserId,
     user_name: userData.user_name,
+    name: userData.user_name,
     business_name: userData.business_name,
+    email: userData.email,
     website: userData.website || '',
     phone_number: userData.phone_number,
-    email: userData.email,
     location: userData.location || '',
     hear_about_us: userData.hear_about_us || [],
     created_at: new Date().toISOString()
   };
+  saveLocalUser(userPayload);
 
-  const sb = getSupabase();
-  if (sb) {
-    try {
-      const { data, error } = await sb.from('pending_users').insert([payload]).select();
-      if (!error) {
-        saveLocalPendingUser(payload);
-        return { success: true, data };
-      }
-      console.warn('Supabase insert pending_users warning:', error);
-    } catch (e) {
-      console.warn('Supabase insert pending_users exception:', e);
+  return {
+    success: true,
+    user: {
+      id: createdUserId,
+      email: userData.email,
+      name: userData.user_name,
+      status: 'verified'
     }
-  }
-
-  // Fallback to local storage
-  saveLocalPendingUser(payload);
-  return { success: true, data: [payload] };
+  };
 }
 
-function saveLocalPendingUser(payload) {
-  const list = getLocalState('adeffect_pending_users', []);
+export const submitPendingUser = signUpUser;
+
+function saveLocalUser(payload) {
+  const list = getLocalState('adeffect_users', []);
   list.push(payload);
-  setLocalState('adeffect_pending_users', list);
+  setLocalState('adeffect_users', list);
 }
 
 // 3. Upload PDF Brief to Supabase Storage bucket `Briefs of Pending Requests`

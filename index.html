@@ -454,7 +454,7 @@
     <div class="auth-header-banner">
       <div>
         <h1 class="auth-header-title">THANK YOU FOR CHOOSING ADEFFECT</h1>
-        <p class="auth-header-subtitle">Please fill in the form below so that we may review your information and authenticate your account.</p>
+        <p class="auth-header-subtitle">Please fill in the form below to create your account and access your dashboard immediately.</p>
       </div>
       <button id="btnHeaderLogin" class="btn-header-login">LOG IN</button>
     </div>
@@ -491,6 +491,16 @@
           <div class="auth-field-group">
             <label>Location (optional)</label>
             <input type="text" id="signupLocation" class="auth-input-field" placeholder="Type here..." />
+          </div>
+
+          <div class="auth-field-group">
+            <label>Password *</label>
+            <input type="password" id="signupPassword" class="auth-input-field" placeholder="••••••••" required />
+          </div>
+
+          <div class="auth-field-group">
+            <label>Confirm Password *</label>
+            <input type="password" id="signupConfirmPassword" class="auth-input-field" placeholder="••••••••" required />
           </div>
         </div>
 
@@ -542,16 +552,16 @@
     </div>
   </section>
 
-  <!-- PENDING REGISTRATION SUCCESS MODAL -->
+  <!-- SIGN UP SUCCESS MODAL -->
   <div id="pendingSuccessModal" class="modal-overlay">
     <div style="background: white; border: 3px solid #111; box-shadow: 10px 10px 0px #111; border-radius: 24px; padding: 40px; max-width: 550px; margin: auto; text-align: center;">
       <div style="width: 70px; height: 70px; background: #DCFCE7; border-radius: 50%; color: #16A34A; font-size: 36px; display: grid; place-content: center; margin: 0 auto 20px auto; border: 2px solid #16A34A;">✓</div>
-      <h2 style="font-size: 1.8rem; font-weight: 900; color: #111; margin-bottom: 12px;">Registration Submitted</h2>
+      <h2 style="font-size: 1.8rem; font-weight: 900; color: #111; margin-bottom: 12px;">Account Created!</h2>
       <p style="color: #555; line-height: 1.6; font-weight: 600; font-size: 1rem;">
-        Thank you for choosing AdEffect! Your account registration request is currently under manual admin review. Our team will verify your information and contact you shortly.
+        Welcome to AdEffect! Your account has been created successfully.
       </p>
-      <button onclick="document.getElementById('pendingSuccessModal').classList.remove('active'); window.showPage('home');" class="btn-wizard-next" style="margin-top: 28px;">
-        Return to Home Page
+      <button onclick="document.getElementById('pendingSuccessModal').classList.remove('active'); window.showPage('dashboardSection');" class="btn-wizard-next" style="margin-top: 28px;">
+        Go to Dashboard
       </button>
     </div>
   </div>
