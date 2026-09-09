@@ -159,6 +159,7 @@ export async function fetchBillboards() {
 // 2. Actual Supabase Sign Up & insert into `users` table
 export async function signUpUser(userData) {
   const sb = getSupabase();
+
   let createdUserId = null;
 
   if (sb) {
@@ -179,13 +180,12 @@ export async function signUpUser(userData) {
         return { success: false, error: authError.message };
       }
 
-      createdUserId = authData?.user?.id || `user-${Date.now()}`;
+      createdUserId = authData?.user?.id;
 
       // 2. Immediately insert account details into `users` table
       const userPayload = {
-        id: createdUserId,
+        user_id: createdUserId,
         user_name: userData.user_name,
-        name: userData.user_name,
         business_name: userData.business_name,
         email: userData.email,
         website: userData.website || '',
@@ -195,7 +195,7 @@ export async function signUpUser(userData) {
         created_at: new Date().toISOString()
       };
 
-      const { data: insertData, error: insertError } = await sb.from('users').insert([userPayload]).select();
+      const {error: insertError } = await sb.from('users').insert([userPayload]);
       if (insertError) {
         console.warn('Supabase insert users warning:', insertError);
       }
