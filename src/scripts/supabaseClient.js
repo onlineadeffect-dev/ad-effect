@@ -34,7 +34,7 @@ export function normalizeBillboards(list) {
     // Format is_available to display status e.g. "Available" or "Unavailable"
     let statusText = b.is_available;
     if (typeof b.is_available === 'boolean') {
-      statusText = b.is_available ? 'Available' : 'Unavailable';
+      statusText = b.is_available ? 'Available' : 'Unavailable until...';
     } else if (!b.is_available) {
       statusText = 'Available';
     }

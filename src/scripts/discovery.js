@@ -37,7 +37,7 @@ export async function initDiscovery() {
     });
     return {
       ...b,
-      is_available: isCurrentlyBooked ? 'Unavailable' : 'Available'
+      is_available: isCurrentlyBooked ? 'Unavailable until...' : 'Available'
     };
   });
 
@@ -138,7 +138,7 @@ function applyFilters() {
     const locStr = (b.location || '').toLowerCase();
     const typeStr = (b.structure || '').toLowerCase();
     const idStr = (b.billboard_id || '').toLowerCase();
-    const availStr = (typeof b.is_available === 'boolean' ? (b.is_available ? 'available' : 'unavailable') : (b.is_available || '')).toLowerCase();
+    const availStr = (typeof b.is_available === 'boolean' ? (b.is_available ? 'available' : 'unavailable until...') : (b.is_available || '')).toLowerCase();
     const sizeStr = (b.size || '').replace(/\s+/g, '').toLowerCase();
 
     // 1. Search Query Filter (billboard_id, location, type)
@@ -215,7 +215,7 @@ function getStructureKey(structureStr) {
 
 function renderBillboardCard(b) {
   const isAvail = b.is_available === 'Available' || b.is_available === true;
-  const statusText = isAvail ? 'Available' : (b.is_available === false ? 'Unavailable' : (b.is_available || 'Available'));
+  const statusText = isAvail ? 'Available' : (b.is_available === false ? 'Unavailable until...' : (b.is_available || 'Available'));
   const statusClass = isAvail ? 'status-available' : 'status-soon';
   const btnLabel = isAvail ? 'Book Now' : 'Check Schedule';
   const locationTag = (b.location || 'North Lebanon').split(',')[0];
