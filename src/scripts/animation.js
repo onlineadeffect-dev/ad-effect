@@ -31,6 +31,9 @@ export function initHomeAnimation() {
         { billboard_id: 'P003-C', location: 'Mina Road, Tripoli', image_url: 'https://images.unsplash.com/photo-1542751371-adc38448a05e?auto=format&fit=crop&w=800&q=80' }
       ];
 
+      // Cap to 6 items to prevent DOM overload and browser crashes on mobile
+      const itemsToRender = items.slice(0, 6);
+
       // Create stream HTML items without prices
       const renderCard = (b, index) => `
         <div class="stream-card ${index % 2 === 0 ? 'flicker-booking' : ''}">
@@ -41,8 +44,8 @@ export function initHomeAnimation() {
       `;
 
       // Build duplicated sets for infinite scroll
-      const set1 = items.map((b, i) => renderCard(b, i)).join('');
-      const set2 = [...items].reverse().map((b, i) => renderCard(b, i + 1)).join('');
+      const set1 = itemsToRender.map((b, i) => renderCard(b, i)).join('');
+      const set2 = [...itemsToRender].reverse().map((b, i) => renderCard(b, i + 1)).join('');
 
       upCol.innerHTML = set1 + set1;
       downCol.innerHTML = set2 + set2;

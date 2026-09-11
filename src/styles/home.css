@@ -933,6 +933,10 @@
     box-shadow: none;
   }
 
+  .flicker-booking {
+    animation: none; /* Disable heavy shadow animations on mobile to prevent crashes */
+  }
+
   .stream-card-img {
     height: 55px;
   }
