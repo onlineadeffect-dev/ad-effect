@@ -111,13 +111,13 @@ export function initHomeAnimation() {
   function resetProgressBar() {
     if (!progressFill) return;
     progressFill.style.transition = 'none';
-    progressFill.style.width = '0%';
+    progressFill.style.transform = 'scaleX(0)';
     
     // Force reflow
     void progressFill.offsetWidth;
 
-    progressFill.style.transition = `width ${slideDuration}ms linear`;
-    progressFill.style.width = '100%';
+    progressFill.style.transition = `transform ${slideDuration}ms linear`;
+    progressFill.style.transform = 'scaleX(1)';
   }
 
   function nextSlide() {
