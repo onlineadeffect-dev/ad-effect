@@ -538,11 +538,16 @@ export async function validateBookingDates(billboardId, startTimeStr, endTimeStr
   return activeBookings;
 }*/
 
+// UUID validation — Supabase requires RFC 4122 UUIDs for uuid columns.
+// Non-UUID IDs (e.g. "user-1234567890" from the local fallback path) must be
+// rejected client-side to avoid a 400 from the server.
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 export async function fetchActiveBookings(userId = null) {
   const sb = getSupabase();
 
-  // Return empty immediately if no valid user_id is passed
-  if (!sb || !userId) {
+  // Return empty immediately if no valid user_id is passed or it is not a UUID
+  if (!sb || !userId || !UUID_REGEX.test(userId)) {
     return [];
   }
 
@@ -568,12 +573,11 @@ export async function fetchActiveBookings(userId = null) {
 // 8. Fetch Quotations for Client Dashboard ("Quotations")
 export async function fetchQuotations(userId, userEmail = null) {
   const sb = getSupabase();
-  if (sb) {
+  // Only query Supabase if userId is a valid UUID; otherwise fall through to local fallback
+  if (sb && userId && UUID_REGEX.test(userId)) {
     try {
       let query = sb.from('quotations').select('*');
-      if (userId) {
-        query = query.eq('client_id', userId);
-      }
+      query = query.eq('client_id', userId);
       const { data, error } = await query;
       if (!error && data) {
         return data;
