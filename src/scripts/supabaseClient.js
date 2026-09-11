@@ -396,6 +396,44 @@ export async function fetchConfirmedBookings(billboardId) {
   return confirmed;
 }
 
+// 6b. Fetch ALL bookings (no billboard filter) — used for bulk availability checks
+export async function fetchAllBookings() {
+  const sb = getSupabase();
+  if (sb) {
+    try {
+      const { data, error } = await sb.from('bookings').select('billboard_id, start_time, end_time');
+      if (!error && data) {
+        return data;
+      }
+      if (error) console.warn('Supabase fetchAllBookings error:', error.message);
+    } catch (e) {
+      console.warn('Supabase fetchAllBookings exception:', e);
+    }
+  }
+
+  // REST fallback
+  try {
+    const res = await fetch(
+      `${SUPABASE_URL}/rest/v1/bookings?select=billboard_id,start_time,end_time`,
+      {
+        headers: {
+          'apikey': SUPABASE_ANON_KEY,
+          'Authorization': `Bearer ${SUPABASE_ANON_KEY}`
+        }
+      }
+    );
+    if (res.ok) {
+      const data = await res.json();
+      if (Array.isArray(data)) return data;
+    }
+  } catch (e) {
+    console.warn('fetchAllBookings REST fallback exception:', e);
+  }
+
+  // Local fallback — return whatever confirmed bookings are stored locally
+  return getLocalState('adeffect_confirmed_bookings', []);
+}
+
 export async function validateBookingDates(billboardId, startTimeStr, endTimeStr, billboardSize = null) {
   const start = new Date(startTimeStr).getTime();
   const end = new Date(endTimeStr).getTime();

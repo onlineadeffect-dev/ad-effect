@@ -1,5 +1,5 @@
 // Billboard Discovery & Filter Modal Logic (Pages 2 & 3)
-import { fetchBillboards } from './supabaseClient.js';
+import { fetchBillboards, fetchAllBookings } from './supabaseClient.js';
 import { getCurrentUser, showPage } from './auth.js';
 import { openBillboardDetail } from './bookingWizard.js';
 
@@ -14,14 +14,33 @@ let activeFilters = {
 
 export async function initDiscovery() {
 
-  allBillboards = await fetchBillboards();
-  console.log('Structure values:', [...new Set(allBillboards.map(b => b.structure))]);
-
   const container = document.getElementById('billboardsGrid');
   if (!container) return;
 
-  // Fetch billboards dataset
-  allBillboards = await fetchBillboards();
+  // Fetch billboards and all bookings in parallel
+  const [billboards, allBookings] = await Promise.all([
+    fetchBillboards(),
+    fetchAllBookings()
+  ]);
+
+  console.log('Structure values:', [...new Set(billboards.map(b => b.structure))]);
+
+  // Compute real-time availability: a billboard is unavailable if any booking
+  // covers the current moment (now >= start_time AND now <= end_time)
+  const now = Date.now();
+  allBillboards = billboards.map(b => {
+    const isCurrentlyBooked = allBookings.some(booking => {
+      if (booking.billboard_id !== b.billboard_id) return false;
+      const bStart = new Date(booking.start_time).getTime();
+      const bEnd   = new Date(booking.end_time).getTime();
+      return !isNaN(bStart) && !isNaN(bEnd) && now >= bStart && now <= bEnd;
+    });
+    return {
+      ...b,
+      is_available: isCurrentlyBooked ? 'Unavailable' : 'Available'
+    };
+  });
+
   renderBillboards(allBillboards);
 
   // Search input handler
