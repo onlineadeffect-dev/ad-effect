@@ -24,7 +24,9 @@ export function setCurrentUser(user) {
 }
 
 export function initAuth() {
-  const btnGoToDashboard = document.getElementById('btnGoToDashboard');
+  window.handleDashboardNavigation = handleDashboardNavigation;
+
+  const dashboardBtns = document.querySelectorAll('#btnGoToDashboard, #btnNavDashboard, .btn-nav-dashboard, .btn-explore');
   const btnForgotPassword = document.getElementById('btnForgotPassword');
 
   if (btnForgotPassword) {
@@ -34,12 +36,12 @@ export function initAuth() {
     });
   }
 
-  if (btnGoToDashboard) {
-    btnGoToDashboard.addEventListener('click', (e) => {
+  dashboardBtns.forEach(btn => {
+    btn.addEventListener('click', (e) => {
       e.preventDefault();
       handleDashboardNavigation();
     });
-  }
+  });
 
   // Bind Sign Up Form
   const signUpForm = document.getElementById('signUpForm');

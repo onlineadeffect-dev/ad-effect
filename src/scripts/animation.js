@@ -1,5 +1,6 @@
 import { fetchBillboards } from './supabaseClient.js';
 
+
 /* HOME INTRO & SLIDER ANIMATION CONTROLLER */
 export function initHomeAnimation() {
   const dotsContainer = document.getElementById('dotsContainer');
@@ -7,6 +8,8 @@ export function initHomeAnimation() {
   const logoText = document.getElementById('logoText');
   const sloganText = document.getElementById('sloganText');
   const brandAssembly = document.getElementById('brandAssembly');
+  const billboardsStage = document.getElementById('billboardsStage');
+  const ctaButtons = document.getElementById('ctaButtons');
   const heroAnimationStage = document.getElementById('heroAnimationStage');
   const replayBtn = document.getElementById('replayBtn');
 
@@ -58,6 +61,8 @@ export function initHomeAnimation() {
     logoText?.classList.remove('show');
     sloganText?.classList.remove('typing');
     brandAssembly?.classList.remove('shifted-up');
+    billboardsStage?.classList.remove('show');
+    ctaButtons?.classList.remove('show');
     heroAnimationStage?.classList.remove('show');
 
     dots.forEach(d => {
@@ -80,9 +85,11 @@ export function initHomeAnimation() {
       sloganText?.classList.add('typing');
     }, 750);
 
-    // Step 3: Shift assembly up & reveal animation stage (1450ms)
+    // Step 3: Shift assembly up & reveal billboards stage, CTA buttons, and hero animation stage (1450ms)
     setTimeout(() => {
       brandAssembly?.classList.add('shifted-up');
+      billboardsStage?.classList.add('show');
+      ctaButtons?.classList.add('show');
       heroAnimationStage?.classList.add('show');
       startSlideLoop();
     }, 1450);

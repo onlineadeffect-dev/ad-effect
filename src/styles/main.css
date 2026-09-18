@@ -6,6 +6,7 @@
 @import "./booking.css";
 @import "./contact.css";
 @import "./dashboard.css";
+@import "./initial_home.css";
 
 * {
   box-sizing: border-box;
