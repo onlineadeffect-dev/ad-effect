@@ -1,5 +1,5 @@
 import { getCurrentUser, showPage } from './auth.js';
-import { validateBookingDates, uploadBriefFile, submitPendingBooking, fetchConfirmedBookings, fetchPendingBookings } from './supabaseClient.js';
+import { validateBookingDates, uploadBriefFile, submitPendingBooking, fetchConfirmedBookings } from './supabaseClient.js';
 import { refreshDashboardRequests } from './dashboard.js';
 
 let activeBillboard = null;
@@ -85,10 +85,7 @@ export function initBookingWizard() {
 
 async function prepareCalendarForBillboard(billboardId) {
   const confirmed = await fetchConfirmedBookings(billboardId);
-  const pending = await fetchPendingBookings();
-  const filteredPending = pending.filter(b => b.billboard_id === billboardId && b.status !== 'Rejected');
-  
-  existingBookingsForCalendar = [...confirmed, ...filteredPending];
+  existingBookingsForCalendar = [...confirmed];
   renderBookingCalendar();
 }
 

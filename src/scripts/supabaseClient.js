@@ -469,16 +469,9 @@ export async function validateBookingDates(billboardId, startTimeStr, endTimeStr
     }
   }
 
-  const pendingBookings = await fetchPendingBookings();
   const confirmedBookings = await fetchConfirmedBookings(billboardId);
 
-  // Combine pending and confirmed bookings for this billboard
-  const allBookings = [
-    ...pendingBookings.filter(b => b.billboard_id === billboardId && b.status !== 'Rejected'),
-    ...confirmedBookings.filter(b => b.billboard_id === billboardId)
-  ];
-
-  for (const b of allBookings) {
+  for (const b of confirmedBookings) {
     const bStart = new Date(b.start_time || b.start_date).getTime();
     const bEnd = new Date(b.end_time || b.end_date).getTime();
 
