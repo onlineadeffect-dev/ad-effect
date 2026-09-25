@@ -569,6 +569,37 @@
         </form>
       </div>
     </div>
+
+    <!-- Reset Password Box -->
+    <div id="resetPasswordBox" class="auth-body-form" style="display: none;">
+      <div class="auth-card-inner">
+        <h2 class="auth-card-title">Reset Your Password</h2>
+        <p class="auth-card-subtitle">Enter your registered email address and your new password below.</p>
+        
+        <form id="resetPasswordForm">
+          <div class="auth-field-group" style="margin-bottom: 20px;">
+            <label>Email Address</label>
+            <input type="email" id="resetEmail" class="auth-input-field" placeholder="client@example.com" required />
+          </div>
+
+          <div class="auth-field-group" style="margin-bottom: 20px;">
+            <label>New Password</label>
+            <input type="password" id="resetPassword" class="auth-input-field" placeholder="••••••••" required />
+          </div>
+
+          <div class="auth-field-group" style="margin-bottom: 20px;">
+            <label>Confirm New Password</label>
+            <input type="password" id="resetConfirmPassword" class="auth-input-field" placeholder="••••••••" required />
+          </div>
+
+          <button type="submit" id="btnResetPasswordSubmit" class="btn-auth-submit btn-signin-submit">Update Password</button>
+
+          <p style="text-align: center; margin-top: 16px; font-weight: 600;" class="auth-switch-text">
+            Remembered your password? <a href="#" id="btnSwitchToSignInFromReset" style="color: var(--primary-red); text-decoration: underline;">Back to Log In</a>
+          </p>
+        </form>
+      </div>
+    </div>
   </section>
 
   <!-- SIGN UP SUCCESS MODAL -->

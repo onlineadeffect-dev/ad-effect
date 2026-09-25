@@ -36,6 +36,14 @@ export function initAuth() {
     });
   }
 
+  const btnSwitchToSignInFromReset = document.getElementById('btnSwitchToSignInFromReset');
+  if (btnSwitchToSignInFromReset) {
+    btnSwitchToSignInFromReset.addEventListener('click', (e) => {
+      e.preventDefault();
+      toggleAuthMode('signin');
+    });
+  }
+
   dashboardBtns.forEach(btn => {
     btn.addEventListener('click', (e) => {
       e.preventDefault();
@@ -49,10 +57,16 @@ export function initAuth() {
     signUpForm.addEventListener('submit', handleSignUpSubmit);
   }
 
-  // Bind Sign In Form (Now properly handles Supabase)
+  // Bind Sign In Form
   const signInForm = document.getElementById('signInForm');
   if (signInForm) {
     signInForm.addEventListener('submit', handleSignInSubmit);
+  }
+
+  // Bind Reset Password Form
+  const resetPasswordForm = document.getElementById('resetPasswordForm');
+  if (resetPasswordForm) {
+    resetPasswordForm.addEventListener('submit', handleResetPasswordSubmit);
   }
 
   // Auth View Switchers
@@ -72,46 +86,24 @@ export function initAuth() {
     });
   }
 
-  // Handle password reset redirect from email link
+  // Handle password reset redirect or hash from link if navigated to directly
   const urlParams = new URLSearchParams(window.location.search);
-  if (urlParams.get('reset') === 'true') {
+  if (urlParams.get('reset') === 'true' || window.location.hash.includes('access_token')) {
     showPage('authSection');
-    toggleAuthMode('signin'); // or show a dedicated reset form
-    showAuthSuccess('You can now set a new password — Supabase handles this via your account settings page.');
+    toggleAuthMode('reset');
   }
 
   // Initial routing setup on page load
   showPage('home');
 }
 
-async function handleForgotPassword() {
+function handleForgotPassword() {
   const email = document.getElementById('signinEmail')?.value.trim();
-
-  if (!email) {
-    showAuthError('Please enter your email address above, then click "Forgot your password?"');
-    return;
-  }
-
-  const sb = getSupabase();
-  if (!sb) {
-    showAuthError('Unable to connect. Please try again later.');
-    return;
-  }
-
-  try {
-    const { error } = await sb.auth.resetPasswordForEmail(email, {
-      redirectTo: window.location.origin + '/?reset=true', // adjust this path if needed
-    });
-
-    if (error) {
-      showAuthError(`Could not send reset email: ${error.message}`);
-      return;
-    }
-
-    showAuthSuccess('Password reset email sent! Check your inbox and follow the link.');
-  } catch (err) {
-    showAuthError('Something went wrong. Please try again.');
-    console.error('Forgot password error:', err);
+  showPage('authSection');
+  toggleAuthMode('reset');
+  if (email) {
+    const resetEmailField = document.getElementById('resetEmail');
+    if (resetEmailField) resetEmailField.value = email;
   }
 }
 
@@ -127,16 +119,151 @@ export function handleDashboardNavigation() {
 export function toggleAuthMode(mode) {
   const signUpBox = document.getElementById('signUpBox');
   const signInBox = document.getElementById('signInBox');
+  const resetPasswordBox = document.getElementById('resetPasswordBox');
   const btnHeaderLogin = document.getElementById('btnHeaderLogin');
 
   if (mode === 'signin') {
     if (signUpBox) signUpBox.style.display = 'none';
     if (signInBox) signInBox.style.display = 'block';
+    if (resetPasswordBox) resetPasswordBox.style.display = 'none';
     if (btnHeaderLogin) btnHeaderLogin.textContent = 'SIGN UP';
+  } else if (mode === 'reset') {
+    if (signUpBox) signUpBox.style.display = 'none';
+    if (signInBox) signInBox.style.display = 'none';
+    if (resetPasswordBox) resetPasswordBox.style.display = 'block';
+    if (btnHeaderLogin) btnHeaderLogin.textContent = 'LOG IN';
   } else {
     if (signUpBox) signUpBox.style.display = 'block';
     if (signInBox) signInBox.style.display = 'none';
+    if (resetPasswordBox) resetPasswordBox.style.display = 'none';
     if (btnHeaderLogin) btnHeaderLogin.textContent = 'LOG IN';
+  }
+}
+
+async function handleResetPasswordSubmit(e) {
+  e.preventDefault();
+
+  const email = document.getElementById('resetEmail')?.value.trim();
+  const newPassword = document.getElementById('resetPassword')?.value.trim();
+  const confirmPassword = document.getElementById('resetConfirmPassword')?.value.trim();
+  const resetErrorBox = document.getElementById('resetErrorBox');
+  const resetSuccessBox = document.getElementById('resetSuccessBox');
+
+  if (resetErrorBox) resetErrorBox.style.display = 'none';
+  if (resetSuccessBox) resetSuccessBox.style.display = 'none';
+
+  if (!email || !newPassword || !confirmPassword) {
+    showResetError('Please fill out all required fields.');
+    return;
+  }
+
+  if (newPassword !== confirmPassword) {
+    showResetError('Passwords do not match. Please re-enter your new password.');
+    return;
+  }
+
+  if (newPassword.length < 6) {
+    showResetError('Password must be at least 6 characters long.');
+    return;
+  }
+
+  const sb = getSupabase();
+  if (!sb) {
+    showResetError('Authentication service is unavailable. Please try again later.');
+    return;
+  }
+
+  const btnSubmit = document.getElementById('btnResetPasswordSubmit');
+  if (btnSubmit) {
+    btnSubmit.disabled = true;
+    btnSubmit.textContent = 'UPDATING PASSWORD...';
+  }
+
+  try {
+    // 1. Verify that email exists in users table (only allowing password reset for their registered email)
+    const { data: userRows, error: userError } = await sb
+      .from('users')
+      .select('email')
+      .eq('email', email);
+
+    if (userError || !userRows || userRows.length === 0) {
+      showResetError('No account found with this email address. Password change is only allowed for registered user emails.');
+      if (btnSubmit) {
+        btnSubmit.disabled = false;
+        btnSubmit.textContent = 'Update Password';
+      }
+      return;
+    }
+
+    // 2. Perform Supabase password update
+    const { error: updateError } = await sb.auth.updateUser({ password: newPassword });
+    if (updateError) {
+      // If no active session exists for updateUser, attempt recovery / sign-in with password or handle via Supabase Auth
+      showResetError(`Supabase Auth Update Notice: ${updateError.message}`);
+      if (btnSubmit) {
+        btnSubmit.disabled = false;
+        btnSubmit.textContent = 'Update Password';
+      }
+      return;
+    }
+
+    showResetSuccess('Password updated successfully! You can now log in with your new password.');
+
+    const form = document.getElementById('resetPasswordForm');
+    if (form) form.reset();
+
+    setTimeout(() => {
+      toggleAuthMode('signin');
+      const signinEmail = document.getElementById('signinEmail');
+      if (signinEmail) signinEmail.value = email;
+    }, 2000);
+
+  } catch (err) {
+    console.error('Reset password error:', err);
+    showResetError('An unexpected error occurred while resetting your password.');
+  } finally {
+    if (btnSubmit) {
+      btnSubmit.disabled = false;
+      btnSubmit.textContent = 'Update Password';
+    }
+  }
+}
+
+function showResetError(msg) {
+  let box = document.getElementById('resetErrorBox');
+  if (!box) {
+    const form = document.getElementById('resetPasswordForm');
+    if (form) {
+      box = document.createElement('div');
+      box.id = 'resetErrorBox';
+      box.style.cssText = 'background: #FEF2F2; border: 2px solid #EF4444; color: #991B1B; padding: 12px 16px; border-radius: 12px; font-weight: 700; font-size: 0.9rem; margin-bottom: 16px;';
+      form.prepend(box);
+    }
+  }
+  if (box) {
+    box.textContent = msg;
+    box.style.display = 'block';
+  } else {
+    alert(msg);
+  }
+}
+
+function showResetSuccess(msg) {
+  let box = document.getElementById('resetSuccessBox');
+  if (!box) {
+    const form = document.getElementById('resetPasswordForm');
+    if (form) {
+      box = document.createElement('div');
+      box.id = 'resetSuccessBox';
+      box.style.cssText = 'background: #DCFCE7; border: 2px solid #16A34A; color: #15803D; padding: 12px 16px; border-radius: 12px; font-weight: 700; font-size: 0.9rem; margin-bottom: 16px;';
+      form.prepend(box);
+    }
+  }
+  if (box) {
+    box.textContent = msg;
+    box.style.display = 'block';
+  } else {
+    alert(msg);
   }
 }
 
