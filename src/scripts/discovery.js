@@ -213,6 +213,31 @@ function getStructureKey(structureStr) {
   return 'other';
 }
 
+// Helper to calculate number of months between start and end date
+export function calculateMonths(startDateStr, endDateStr) {
+  if (!startDateStr || !endDateStr) return 1;
+  const start = new Date(startDateStr);
+  const end = new Date(endDateStr);
+  if (isNaN(start) || isNaN(end) || end <= start) return 1;
+  const diffDays = Math.round((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
+  return Math.max(1, Math.round(diffDays / 30));
+}
+
+// Helper to calculate final billboard price when duration is > 1 month
+export function calculateBillboardPrice(monthlyPrice, startDateStr, endDateStr) {
+  const numericMonthly = typeof monthlyPrice === 'number'
+    ? monthlyPrice
+    : parseFloat((monthlyPrice || '').toString().replace(/[^0-9.]/g, '')) || 0;
+  const months = calculateMonths(startDateStr, endDateStr);
+  const totalPrice = numericMonthly * months;
+  return {
+    months,
+    monthlyPrice: numericMonthly,
+    totalPrice,
+    formattedTotal: `$ ${totalPrice.toLocaleString()}`
+  };
+}
+
 function renderBillboardCard(b) {
   const isAvail = b.is_available === 'Available' || b.is_available === true;
   const statusText = isAvail ? 'Available' : (b.is_available === false ? 'Unavailable until...' : (b.is_available || 'Available'));
@@ -235,9 +260,12 @@ function renderBillboardCard(b) {
           <span class="card-status ${statusClass}">${statusText}</span>
         </div>
         <div class="card-location">${b.location || 'North Lebanon / Network'}</div>
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 8px;">
+        <div style="display: flex; justify-content: space-between; align-items: baseline; margin-top: 8px;">
           <span style="font-size: 0.85rem; font-weight: 700; color: #666; text-transform: uppercase;">${b.structure || 'Billboard'}</span>
-          <span style="font-weight: 900; color: var(--primary-red); font-size: 1.15rem;">${b.price}</span>
+          <span style="font-weight: 900; color: var(--primary-red); font-size: 1.15rem;">${b.price} <span style="font-size: 0.75rem; font-weight: 700; color: #777;">/ mo</span></span>
+        </div>
+        <div style="font-size: 0.72rem; color: #777; margin-top: 4px; font-style: italic; line-height: 1.3;">
+          * Price is for 1 month only and is subject to increase according to extra services.
         </div>
         <button class="btn-card-action ${!isAvail ? 'soon' : ''}" data-id="${b.billboard_id}" style="margin-top: 14px;">
           ${btnLabel}

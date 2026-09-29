@@ -1,12 +1,16 @@
 import { getCurrentUser, showPage } from './auth.js';
 import { validateBookingDates, uploadBriefFile, submitPendingBooking, fetchConfirmedBookings } from './supabaseClient.js';
 import { refreshDashboardRequests } from './dashboard.js';
+import { calculateMonths } from './discovery.js';
 
 let activeBillboard = null;
 let bookingState = {
   billboard_id: '',
   start_time: '',
   end_time: '',
+  num_months: 1,
+  monthly_price: 1000,
+  total_price: 1000,
   brief_url: '',
   brief_filename: '',
   extra_services: []
@@ -203,12 +207,19 @@ async function renderBookingCalendar() {
 export function openBillboardDetail(billboard) {
   activeBillboard = billboard;
   bookingState.billboard_id = billboard.billboard_id;
+  const numPrice = billboard.numericPrice || parseFloat((billboard.price || '').toString().replace(/[^0-9.]/g, '')) || 1000;
+  bookingState.monthly_price = numPrice;
+  bookingState.total_price = numPrice;
+  bookingState.num_months = 1;
 
   document.getElementById('detailBillboardId').textContent = billboard.billboard_id;
   document.getElementById('detailLocation').textContent = billboard.location;
   document.getElementById('detailType').textContent = (billboard.type || 'Unipole').toUpperCase();
   document.getElementById('detailSize').textContent = billboard.size || 'W:147 H:43';
-  document.getElementById('detailPrice').textContent = billboard.price || '$ 1,000';
+  
+  const rawPriceStr = billboard.price || '$ 1,000';
+  const priceDisplay = rawPriceStr.includes('/ mo') ? rawPriceStr : `${rawPriceStr} / mo`;
+  document.getElementById('detailPrice').textContent = priceDisplay;
   document.getElementById('detailImage').src = billboard.image_url;
 
   const btnMaps360 = document.getElementById('btnMaps360');
@@ -277,8 +288,14 @@ async function handleStep1Submit() {
 
   if (warningBox) warningBox.classList.remove('active');
 
+  const months = calculateMonths(startDate, endDate);
+  const monthlyPrice = activeBillboard?.numericPrice || parseFloat((activeBillboard?.price || '').toString().replace(/[^0-9.]/g, '')) || 1000;
+
   bookingState.start_time = new Date(startDate).toISOString();
   bookingState.end_time = new Date(endDate).toISOString();
+  bookingState.num_months = months;
+  bookingState.monthly_price = monthlyPrice;
+  bookingState.total_price = monthlyPrice * months;
 
   goToWizardStep(2);
 }
@@ -398,6 +415,21 @@ function renderStep4Summary() {
 
   document.getElementById('summaryDateRange').textContent = `${startFormatted} ➔ ${endFormatted}`;
 
+  // Calculate & render Multiplied Price for duration
+  const numMonths = bookingState.num_months || calculateMonths(bookingState.start_time, bookingState.end_time);
+  const monthlyPrice = bookingState.monthly_price || activeBillboard.numericPrice || parseFloat((activeBillboard.price || '').toString().replace(/[^0-9.]/g, '')) || 1000;
+  const totalPrice = monthlyPrice * numMonths;
+  bookingState.total_price = totalPrice;
+
+  const priceEl = document.getElementById('summaryFinalPrice');
+  if (priceEl) {
+    priceEl.textContent = `$ ${totalPrice.toLocaleString()}`;
+  }
+  const breakdownEl = document.getElementById('summaryPriceBreakdown');
+  if (breakdownEl) {
+    breakdownEl.textContent = `${numMonths} month${numMonths > 1 ? 's' : ''} @ $ ${monthlyPrice.toLocaleString()} / month`;
+  }
+
   // Render selected services list
   const servicesContainer = document.getElementById('summaryServicesList');
   if (servicesContainer) {
@@ -432,6 +464,8 @@ async function handleBookingSubmission() {
     billboard_id: bookingState.billboard_id,
     start_time: bookingState.start_time,
     end_time: bookingState.end_time,
+    num_months: bookingState.num_months || 1,
+    total_price: bookingState.total_price || bookingState.monthly_price,
     brief_url: bookingState.brief_url,
     extra_services: bookingState.extra_services
   };
