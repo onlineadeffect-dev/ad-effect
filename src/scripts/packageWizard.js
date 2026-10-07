@@ -209,6 +209,7 @@ function renderPackageCheckout() {
 
 function updatePackagePrice() {
   let total = 0;
+  let total_without_printing = 0;
   packageBasket.forEach(b => {
     const numPrice = b.numericPrice || parseFloat((b.price || '').toString().replace(/[^0-9.]/g, '')) || 1000;
     const months = calculateMonths(b.package_start, b.package_end);
@@ -218,8 +219,11 @@ function updatePackagePrice() {
   const printChanges = parseInt(document.getElementById('packagePrintChanges').value) || 0;
   total += printChanges * 350;
 
+  // this will be the new value to use which excludes printing cost because it varies
+  total_without_printing += numPrice * months;
+
   const priceEl = document.getElementById('packageFinalPrice');
-  if (priceEl) priceEl.textContent = `$ ${total.toLocaleString()}`;
+  if (priceEl) priceEl.textContent = `$ ${total_without_printing.toLocaleString()}`;
 }
 
 async function handlePackageBriefUpload(e) {
