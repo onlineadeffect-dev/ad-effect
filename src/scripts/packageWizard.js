@@ -220,10 +220,10 @@ function updatePackagePrice() {
   total += printChanges * 350;
 
   // this will be the new value to use which excludes printing cost because it varies
-  total_without_printing += numPrice * months;
+  //total_without_printing += numPrice * months;
 
   const priceEl = document.getElementById('packageFinalPrice');
-  if (priceEl) priceEl.textContent = `$ ${total_without_printing.toLocaleString()}`;
+  if (priceEl) priceEl.textContent = `$ ${total.toLocaleString()}`;
 }
 
 async function handlePackageBriefUpload(e) {
