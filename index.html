@@ -161,10 +161,17 @@
 
     <h1 class="discovery-title">BOOK YOUR BILLBOARD</h1>
     
-    <div class="discovery-controls">
-      <div class="search-bar-wrapper">
+    <div class="discovery-controls" style="display: flex; gap: 12px; align-items: center; width: 100%; max-width: 900px; flex-wrap: wrap;">
+      <div class="search-bar-wrapper" style="flex: 1; min-width: 250px;">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
-        <input type="text" id="discoverySearchInput" class="search-bar-input" placeholder="Search by location, billboard ID or billboard type" />
+        <input type="text" id="discoverySearchInput" class="search-bar-input" placeholder="Search by location, billboard ID or billboard type" style="width: 100%;" />
+      </div>
+
+      <div style="position: relative;" class="package-btn-wrapper">
+        <button id="btnBookPackage" title="Booking a package means booking multiple billboards within the same ad campaign and timeframe" style="background: #111; color: #fff; font-weight: 800; font-family: 'Montserrat', sans-serif; border: 2.5px solid #111; padding: 12px 20px; border-radius: 12px; cursor: pointer; box-shadow: 4px 4px 0px var(--primary-red); transition: all 0.2s ease; display: flex; align-items: center; gap: 8px;">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline><line x1="12" y1="22.08" x2="12" y2="12"></line></svg>
+          Book a Package
+        </button>
       </div>
 
       <button id="btnToggleFilter" class="filter-btn-toggle" title="Filter Options">
@@ -176,7 +183,106 @@
     <div id="billboardsGrid" class="billboards-grid">
       <!-- Dynamically populated by discovery.js -->
     </div>
+    <!-- Floating Basket for Package Mode -->
+    <div id="floatingPackageBasket" style="display: none; position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); background: #111; color: white; padding: 16px 32px; border-radius: 50px; z-index: 1000; box-shadow: 0 10px 25px rgba(0,0,0,0.3); align-items: center; gap: 20px; font-family: 'Montserrat', sans-serif; cursor: pointer; transition: all 0.3s ease; border: 3px solid var(--primary-red);">
+      <div style="display: flex; align-items: center; gap: 12px;">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"></path><line x1="3" y1="6" x2="21" y2="6"></line><path d="M16 10a4 4 0 0 1-8 0"></path></svg>
+        <div>
+          <div style="font-weight: 800; font-size: 1.1rem;"><span id="basketCount">0</span> Billboards</div>
+          <div style="font-size: 0.8rem; color: #ccc; font-weight: 600;">in your package</div>
+        </div>
+      </div>
+      <div style="background: var(--primary-red); padding: 8px 16px; border-radius: 20px; font-weight: 800; font-size: 0.9rem;">
+        Review & Checkout &rarr;
+      </div>
+    </div>
   </section>
+
+  <!-- PACKAGE TIMEFRAME MODAL -->
+  <div id="packageTimeframeModal" class="modal-overlay">
+    <div class="filter-modal-content" style="max-width: 600px; padding: 40px;">
+      <button id="btnClosePackageTimeframe" class="close-modal-btn" style="position: absolute; right: 24px; top: 20px;">&times;</button>
+      <h2 style="font-size: 1.8rem; font-weight: 900; color: #111; margin-bottom: 12px; text-transform: uppercase;">Campaign Timeframe</h2>
+      <p style="font-weight: 600; color: #555; margin-bottom: 24px;">To book a package, we need your campaign dates so we can display only the billboards available during this time.</p>
+      
+      <div class="timeframe-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 24px;">
+        <div class="date-input-group">
+          <label style="display: block; font-weight: 700; margin-bottom: 8px; font-size: 0.9rem; color: #111;">Start Date *</label>
+          <input type="date" id="packageStartDate" style="width: 100%; padding: 12px; border-radius: 8px; border: 2px solid #ccc; font-family: 'Montserrat';" required />
+        </div>
+        <div class="date-input-group">
+          <label style="display: block; font-weight: 700; margin-bottom: 8px; font-size: 0.9rem; color: #111;">End Date *</label>
+          <input type="date" id="packageEndDate" style="width: 100%; padding: 12px; border-radius: 8px; border: 2px solid #ccc; font-family: 'Montserrat';" required />
+        </div>
+      </div>
+      
+      <div id="packageDateWarning" style="display: none; background: #FFF5F5; color: var(--primary-red); padding: 12px; border-radius: 8px; border: 1.5px solid var(--primary-red); font-weight: 700; font-size: 0.9rem; margin-bottom: 24px;"></div>
+      
+      <button id="btnStartPackage" class="btn-wizard-next" style="width: 100%;">Start Building Package &rarr;</button>
+    </div>
+  </div>
+
+  <!-- PACKAGE CHECKOUT MODAL -->
+  <div id="packageCheckoutModal" class="modal-overlay">
+    <div class="wizard-modal-content" style="max-width: 900px; height: 85vh; display: flex; flex-direction: column;">
+      <button id="btnClosePackageCheckout" class="close-modal-btn" style="position: absolute; right: 24px; top: 20px; color: white;">&times;</button>
+      
+      <div class="wizard-header-banner" style="flex-shrink: 0;">
+        <h2>PACKAGE CHECKOUT</h2>
+        <p>Review your billboards, customize durations, and add extras</p>
+      </div>
+      
+      <div class="wizard-body" style="flex: 1; overflow-y: auto; padding: 32px;">
+        <div style="display: flex; gap: 32px; flex-wrap: wrap;">
+          <!-- Left side: Billboards list -->
+          <div style="flex: 2; min-width: 300px;">
+            <h3 style="font-size: 1.3rem; font-weight: 800; margin-bottom: 16px; border-bottom: 2px solid #eee; padding-bottom: 8px;">Selected Billboards</h3>
+            <div id="packageBillboardsList" style="display: flex; flex-direction: column; gap: 16px;">
+              <!-- Dynamically populated -->
+            </div>
+          </div>
+          
+          <!-- Right side: Extras and Totals -->
+          <div style="flex: 1; min-width: 300px; display: flex; flex-direction: column; gap: 24px;">
+            
+            <div style="background: #F8FAFC; border: 2px solid #E2E8F0; border-radius: 12px; padding: 20px;">
+              <h3 style="font-size: 1.1rem; font-weight: 800; margin-bottom: 12px;">Print Changes</h3>
+              <p style="font-size: 0.85rem; color: #666; margin-bottom: 12px; font-weight: 600;">How many times would you like the print to be changed?</p>
+              <input type="number" id="packagePrintChanges" min="0" value="1" style="width: 100%; padding: 10px; border-radius: 8px; border: 2px solid #ccc; font-family: 'Montserrat'; font-weight: 700;" />
+            </div>
+
+            <div style="background: #F8FAFC; border: 2px solid #E2E8F0; border-radius: 12px; padding: 20px;">
+              <h3 style="font-size: 1.1rem; font-weight: 800; margin-bottom: 12px;">Extra Services (Optional)</h3>
+              <div id="packageExtraServices" style="display: flex; flex-direction: column; gap: 8px;">
+                <label class="checkbox-label" style="font-size: 0.9rem;"><input type="checkbox" value="Media Planning" /> Media Planning</label>
+                <label class="checkbox-label" style="font-size: 0.9rem;"><input type="checkbox" value="Advertising, Marketing, Promotions" /> Advertising, Marketing, Promotions</label>
+                <label class="checkbox-label" style="font-size: 0.9rem;"><input type="checkbox" value="Print Advertising" /> Print Advertising</label>
+                <label class="checkbox-label" style="font-size: 0.9rem;"><input type="checkbox" value="Design Services" /> Design Services</label>
+                <label class="checkbox-label" style="font-size: 0.9rem;"><input type="checkbox" value="Media Distribution on Google Maps" /> Media Distribution on Google Maps</label>
+              </div>
+            </div>
+
+            <div style="background: #F8FAFC; border: 2px solid #E2E8F0; border-radius: 12px; padding: 20px;">
+              <h3 style="font-size: 1.1rem; font-weight: 800; margin-bottom: 12px;">Campaign Brief (Optional)</h3>
+              <input type="file" id="packageBriefInput" accept="application/pdf" style="width: 100%; font-size: 0.85rem;" />
+              <div id="packageBriefStatus" style="font-size: 0.8rem; color: #16a34a; font-weight: 700; margin-top: 8px;"></div>
+            </div>
+
+            <div style="background: #FFF5F5; padding: 20px; border-radius: 12px; border: 2px solid var(--primary-red);">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                <span style="font-weight: 800; color: #333; font-size: 1.1rem;">Estimated Total:</span>
+                <span id="packageFinalPrice" style="font-size: 1.5rem; font-weight: 900; color: var(--primary-red);">$ 0</span>
+              </div>
+              <div style="font-size: 0.75rem; color: #666; font-style: italic;">
+                * Total depends on final review of extra services and duration.
+              </div>
+              <button id="btnConfirmPackage" class="btn-wizard-next" style="width: 100%; margin-top: 16px;">Confirm Package Request</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
 
   <!-- FILTER MODAL (Reference: Page 3 layout) -->
   <div id="filterModal" class="modal-overlay">
@@ -717,30 +823,30 @@
       <div class="projects-grid">
         <div class="project-card">
           <div class="project-card-image"><img src="/assets/placeholders/billboard3.jpg" alt="Project 1" /></div>
-          <div class="project-card-content"><h3 class="project-card-title">Unipole Network</h3><p class="project-card-desc">Tripoli Highway</p></div>
+          <div class="project-card-content"><h3 class="project-card-title">Minipole Campaign</h3><p class="project-card-desc">Tripoli</p></div>
         </div>
         <div class="project-card">
           <div class="project-card-image"><img src="/assets/placeholders/billboard2.jpg" alt="Project 2" /></div>
-          <div class="project-card-content"><h3 class="project-card-title">Megapole Campaign</h3><p class="project-card-desc">Dam & Farz</p></div>
+          <div class="project-card-content"><h3 class="project-card-title">Megapole Campaign</h3><p class="project-card-desc">Tripoli Highway Main Entrance</p></div>
         </div>
          <div class="project-card">
           <div class="project-card-image"><img src="/assets/placeholders/billboard1.jpg" alt="Project 2" /></div>
-          <div class="project-card-content"><h3 class="project-card-title">Megapole Campaign</h3><p class="project-card-desc">Dam & Farz</p></div>
+          <div class="project-card-content"><h3 class="project-card-title">Unipole Campaign</h3><p class="project-card-desc">Ras Maska Highway</p></div>
         </div>
       </div>
 
       <div class="projects-grid">
         <div class="project-card">
           <div class="project-card-image"><img src="/assets/placeholders/billboard4.png" alt="Project 1" /></div>
-          <div class="project-card-content"><h3 class="project-card-title">Unipole Network</h3><p class="project-card-desc">Tripoli Highway</p></div>
+          <div class="project-card-content"><h3 class="project-card-title">Unipole Campaign</h3><p class="project-card-desc">Tripoli Highway</p></div>
         </div>
         <div class="project-card">
           <div class="project-card-image"><img src="/assets/placeholders/billboard5.png" alt="Project 2" /></div>
-          <div class="project-card-content"><h3 class="project-card-title">Megapole Campaign</h3><p class="project-card-desc">Dam & Farz</p></div>
+          <div class="project-card-content"><h3 class="project-card-title">Wallsign Campaign</h3><p class="project-card-desc">Al noor roundabout Facing the Saraya</p></div>
         </div>
          <div class="project-card">
           <div class="project-card-image"><img src="/assets/placeholders/billboard6.png" alt="Project 2" /></div>
-          <div class="project-card-content"><h3 class="project-card-title">Megapole Campaign</h3><p class="project-card-desc">Dam & Farz</p></div>
+          <div class="project-card-content"><h3 class="project-card-title">Unipole Campaign</h3><p class="project-card-desc">Chekka Highway - Tripoli Direction</p></div>
         </div>
       </div>
     </div>

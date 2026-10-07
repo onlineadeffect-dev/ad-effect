@@ -328,6 +328,63 @@ export async function submitPendingBooking(bookingData) {
   return { success: true, data: [payload] };
 }
 
+export async function submitPendingPackageBooking(bookingData) {
+  const user = getCurrentUser();
+  if (!user) return { success: false, error: 'Not authenticated' };
+
+  const sb = getSupabase();
+
+  const payload = {
+    user_id: user.id,
+    user_email: bookingData.user_email,
+    start_time: bookingData.start_time,
+    end_time: bookingData.end_time,
+    brief_url: bookingData.brief_url,
+    extra_services: bookingData.extra_services || [],
+    total_price: bookingData.total_price,
+    status: 'In Review',
+    created_at: new Date().toISOString()
+  };
+
+  if (sb) {
+    try {
+      const { data, error } = await sb.from('pending_bookings').insert([payload]).select();
+      if (!error && data && data.length > 0) {
+        const pendingBookingId = data[0].id;
+        
+        const itemsToInsert = bookingData.items.map(item => ({
+          pending_booking_id: pendingBookingId,
+          billboard_id: item.billboard_id,
+          start_time: item.start_time,
+          end_time: item.end_time
+        }));
+
+        const { error: itemsError } = await sb.from('pending_booking_items').insert(itemsToInsert);
+        if (itemsError) {
+          console.warn('Supabase insert pending_booking_items warning:', itemsError);
+        }
+        
+        payload.items = itemsToInsert;
+        saveLocalBooking(payload);
+        return { success: true, data };
+      }
+      console.warn('Supabase insert pending_bookings warning:', error);
+    } catch (e) {
+      console.warn('Supabase insert pending package exception:', e);
+    }
+  }
+
+  // Local fallback
+  payload.items = bookingData.items.map(item => ({
+    pending_booking_id: 'local-' + Date.now(),
+    billboard_id: item.billboard_id,
+    start_time: item.start_time,
+    end_time: item.end_time
+  }));
+  saveLocalBooking(payload);
+  return { success: true, data: [payload] };
+}
+
 function saveLocalBooking(payload) {
   const list = getLocalState('adeffect_pending_bookings', []);
   list.unshift(payload); // Newest first
@@ -339,7 +396,7 @@ export async function fetchPendingBookings(userEmail = null) {
   const sb = getSupabase();
   if (sb) {
     try {
-      let query = sb.from('pending_bookings').select('*');
+      let query = sb.from('pending_bookings').select('*, pending_booking_items(*)');
       if (userEmail) {
         query = query.eq('user_email', userEmail);
       }

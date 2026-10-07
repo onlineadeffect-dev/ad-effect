@@ -18,6 +18,7 @@ import { initContactForm } from './scripts/contact.js';
 import { initAuth, showPage } from './scripts/auth.js';
 import { initDiscovery } from './scripts/discovery.js';
 import { initBookingWizard } from './scripts/bookingWizard.js';
+import { initPackageWizard } from './scripts/packageWizard.js';
 import { initDashboard } from './scripts/dashboard.js';
 import { initCareers, loadCareers } from './scripts/careers.js';
 
@@ -40,6 +41,7 @@ document.addEventListener('DOMContentLoaded', () => {
   initAuth();
   initDiscovery();
   initBookingWizard();
+  initPackageWizard();
   initDashboard();
 
   // careers section

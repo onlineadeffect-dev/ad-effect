@@ -427,7 +427,7 @@ function renderStep4Summary() {
   }
   const breakdownEl = document.getElementById('summaryPriceBreakdown');
   if (breakdownEl) {
-    breakdownEl.textContent = `${numMonths} month${numMonths > 1 ? 's' : ''} @ $ ${monthlyPrice.toLocaleString()} / month`;
+    breakdownEl.textContent = `Duration: ${numMonths} month${numMonths > 1 ? 's' : ''} - Price per month: $ ${monthlyPrice.toLocaleString()} / month`;
   }
 
   // Render selected services list

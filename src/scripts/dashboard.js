@@ -275,9 +275,25 @@ export async function refreshDashboardRequests() {
       ? `<a href="${req.brief_url}" target="_blank" style="color: var(--primary-red); font-weight: 700; text-decoration: underline;">View PDF Brief</a>` 
       : 'No File';
 
+    let displayId = req.billboard_id || 'N/A';
+    
+    // Check if it's a package
+    if (req.pending_booking_items && req.pending_booking_items.length > 0) {
+      displayId = `Package (${req.pending_booking_items.length} Billboards)`;
+    } else if (req.items && req.items.length > 0) {
+      displayId = `Package (${req.items.length} Billboards)`;
+    }
+
+    const detailsBtn = (req.pending_booking_items && req.pending_booking_items.length > 0) || (req.items && req.items.length > 0)
+      ? `<button class="btn-view-pkg" data-id="${req.id}" style="font-size: 0.75rem; padding: 4px 8px; border-radius: 6px; border: 1px solid #ccc; background: #fff; cursor: pointer;">View Billboards</button>`
+      : '';
+
     return `
       <tr>
-        <td style="font-weight: 800; color: #111;">${req.billboard_id}</td>
+        <td style="font-weight: 800; color: #111;">
+          ${displayId}
+          <div style="margin-top: 4px;">${detailsBtn}</div>
+        </td>
         <td>${startDate} ➔ ${endDate}</td>
         <td>${briefLink}</td>
         <td>${services}</td>
@@ -286,6 +302,47 @@ export async function refreshDashboardRequests() {
       </tr>
     `;
   }).join('');
+
+  // Bind view package buttons
+  tbody.querySelectorAll('.btn-view-pkg').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      const id = e.currentTarget.getAttribute('data-id');
+      const req = requests.find(r => String(r.id) === String(id));
+      if (req) openPendingPackageModal(req);
+    });
+  });
+}
+
+function openPendingPackageModal(req) {
+  let modal = document.getElementById('pendingPackageModal');
+  if (!modal) {
+    modal = document.createElement('div');
+    modal.id = 'pendingPackageModal';
+    modal.className = 'modal-overlay';
+    document.body.appendChild(modal);
+  }
+  
+  const items = req.pending_booking_items || req.items || [];
+  
+  modal.innerHTML = `
+    <div class="filter-modal-content" style="max-width: 600px; padding: 32px;">
+      <button class="close-modal-btn" onclick="document.getElementById('pendingPackageModal').classList.remove('active')" style="position: absolute; right: 24px; top: 20px;">&times;</button>
+      <h2 style="font-size: 1.5rem; font-weight: 900; margin-bottom: 20px;">Package Details</h2>
+      <div style="display: flex; flex-direction: column; gap: 12px; max-height: 400px; overflow-y: auto;">
+        ${items.map(item => `
+          <div style="padding: 12px; border: 1px solid #eee; border-radius: 8px; background: #f9f9f9;">
+            <div style="font-weight: 800; font-size: 1.1rem; color: var(--primary-red);">${item.billboard_id}</div>
+            <div style="font-size: 0.9rem; color: #555; margin-top: 4px;">Start: ${new Date(item.start_time).toLocaleDateString()}</div>
+            <div style="font-size: 0.9rem; color: #555;">End: ${new Date(item.end_time).toLocaleDateString()}</div>
+          </div>
+        `).join('')}
+      </div>
+      <div style="margin-top: 20px; font-weight: 800; font-size: 1.1rem; border-top: 2px solid #eee; padding-top: 12px;">
+        Total Estimated Price: $ ${req.total_price ? req.total_price.toLocaleString() : 'N/A'}
+      </div>
+    </div>
+  `;
+  modal.classList.add('active');
 }
 
 // 3. QUOTATIONS SECTION & PDF CONVERSION (`quotations` table in Supabase)

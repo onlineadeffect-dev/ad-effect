@@ -2,8 +2,10 @@
 import { fetchBillboards, fetchAllBookings } from './supabaseClient.js';
 import { getCurrentUser, showPage } from './auth.js';
 import { openBillboardDetail } from './bookingWizard.js';
+import { isPackageMode, packageStartDate, packageEndDate, toggleBillboardInPackage, isBillboardInPackage } from './packageWizard.js';
 
 let allBillboards = [];
+let globalBookings = [];
 let activeFilters = {
   searchQuery: '',
   locations: [],
@@ -22,6 +24,7 @@ export async function initDiscovery() {
     fetchBillboards(),
     fetchAllBookings()
   ]);
+  globalBookings = allBookings;
 
   console.log('Structure values:', [...new Set(billboards.map(b => b.structure))]);
 
@@ -85,6 +88,9 @@ export async function initDiscovery() {
 
   // Auth banner updates
   window.addEventListener('authChange', updateAccessBanner);
+  window.addEventListener('packageModeChanged', () => {
+    applyFilters();
+  });
   updateAccessBanner();
 }
 
@@ -134,7 +140,43 @@ function resetFilterInputs() {
 }
 
 function applyFilters() {
-  const filtered = allBillboards.filter(b => {
+  let listToFilter = allBillboards;
+
+  if (isPackageMode && packageStartDate && packageEndDate) {
+    const pkgStart = new Date(packageStartDate).getTime();
+    const pkgEnd = new Date(packageEndDate).getTime();
+    
+    listToFilter = allBillboards.filter(b => {
+      // Check if it's available ANY time within the package window.
+      // Actually the prompt says: "if a billboard is available somewhere within the selected time frame, DISPLAY IT. It does not have to be available during the ENTIRE time frame to appear in the list."
+      // Let's implement: a billboard is unavailable during the ENTIRE timeframe ONLY IF there is a booking that completely covers or overlaps the entire timeframe such that no free time exists.
+      // Alternatively, if it has no bookings overlapping, it's fully available. If it overlaps partially, it's still available somewhere.
+      // So we ONLY hide it if it's fully booked from pkgStart to pkgEnd.
+      // A simpler approach for "available somewhere": just check if there is at least one day free.
+      // For now, let's just show all billboards except those that are booked for the *entire* duration.
+      // Actually, if we just want it to be available *at all*, we can check if the total booked days within the timeframe < total days in timeframe.
+      
+      const overlappingBookings = globalBookings.filter(booking => {
+        if (booking.billboard_id !== b.billboard_id) return false;
+        const bStart = new Date(booking.start_time).getTime();
+        const bEnd   = new Date(booking.end_time).getTime();
+        return bStart <= pkgEnd && bEnd >= pkgStart; // overlaps
+      });
+      
+      if (overlappingBookings.length === 0) return true;
+      
+      // If there's a single booking that completely covers the timeframe, it's not available.
+      const isFullyCovered = overlappingBookings.some(booking => {
+        const bStart = new Date(booking.start_time).getTime();
+        const bEnd   = new Date(booking.end_time).getTime();
+        return bStart <= pkgStart && bEnd >= pkgEnd;
+      });
+      
+      return !isFullyCovered;
+    });
+  }
+
+  const filtered = listToFilter.filter(b => {
     const locStr = (b.location || '').toLowerCase();
     const typeStr = (b.structure || '').toLowerCase();
     const idStr = (b.billboard_id || '').toLowerCase();
@@ -242,7 +284,20 @@ function renderBillboardCard(b) {
   const isAvail = b.is_available === 'Available' || b.is_available === true;
   const statusText = isAvail ? 'Available' : (b.is_available === false ? 'Unavailable until...' : (b.is_available || 'Available'));
   const statusClass = isAvail ? 'status-available' : 'status-soon';
-  const btnLabel = isAvail ? 'Book Now' : 'Check Schedule';
+  let btnLabel = isAvail ? 'Book Now' : 'Check Schedule';
+  let extraBtnClass = !isAvail ? 'soon' : '';
+
+  if (isPackageMode) {
+    const inBasket = isBillboardInPackage(b.billboard_id);
+    if (inBasket) {
+      btnLabel = 'Remove from Package';
+      extraBtnClass = 'remove-pkg';
+    } else {
+      btnLabel = 'Add to Package';
+      extraBtnClass = 'add-pkg';
+    }
+  }
+
   const locationTag = (b.location || 'North Lebanon').split(',')[0];
 
   return `
@@ -267,7 +322,7 @@ function renderBillboardCard(b) {
         <div style="font-size: 0.72rem; color: #777; margin-top: 4px; font-style: italic; line-height: 1.3;">
           * Price is for 1 month only and is subject to increase according to extra services.
         </div>
-        <button class="btn-card-action ${!isAvail ? 'soon' : ''}" data-id="${b.billboard_id}" style="margin-top: 14px;">
+        <button class="btn-card-action ${extraBtnClass}" data-id="${b.billboard_id}" style="margin-top: 14px; ${isPackageMode && isBillboardInPackage(b.billboard_id) ? 'background:#991B1B; border-color:#991B1B;' : ''}">
           ${btnLabel}
         </button>
       </div>
@@ -365,13 +420,15 @@ function renderBillboards(list) {
 function handleBillboardClick(billboardId) {
   const user = getCurrentUser();
   if (!user || user.status !== 'verified') {
-    // Redirect visitors/guests to Auth Choice Page (Page 12)
     showPage('authSection');
   } else {
-    // Authenticated client proceeds to Billboard Detail View (Page 4) & Booking Flow
     const billboard = allBillboards.find(b => b.billboard_id === billboardId);
     if (billboard) {
-      openBillboardDetail(billboard);
+      if (isPackageMode) {
+        toggleBillboardInPackage(billboard);
+      } else {
+        openBillboardDetail(billboard);
+      }
     }
   }
 }
