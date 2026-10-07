@@ -217,7 +217,7 @@ function updatePackagePrice() {
   });
 
   const printChanges = parseInt(document.getElementById('packagePrintChanges').value) || 0;
-  total += printChanges * 350;
+  //total += printChanges * 350;
 
   // this will be the new value to use which excludes printing cost because it varies
   //total_without_printing += numPrice * months;
