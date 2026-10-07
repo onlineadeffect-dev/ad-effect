@@ -209,7 +209,7 @@ function renderPackageCheckout() {
 
 function updatePackagePrice() {
   let total = 0;
-  let total_without_printing = 0;
+  //let total_without_printing = 0;
   packageBasket.forEach(b => {
     const numPrice = b.numericPrice || parseFloat((b.price || '').toString().replace(/[^0-9.]/g, '')) || 1000;
     const months = calculateMonths(b.package_start, b.package_end);
