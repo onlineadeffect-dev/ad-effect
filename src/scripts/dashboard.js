@@ -373,7 +373,7 @@ export async function refreshQuotations() {
       <div class="quotation-card" data-quotation-id="${q.id}">
         <div>
           <div class="quotation-header">
-            <span class="quotation-ref">REF: ${q.reference}</span>
+            <span class="quotation-ref">REF: ${q.id}</span>
             <span class="quotation-date">${formattedDate}</span>
           </div>
 
@@ -594,7 +594,7 @@ function openQuotationModal(q) {
       </div>
       <div>
         <div style="font-size: 0.8rem; font-weight: 800; color: #888; text-transform: uppercase;">CAMPAIGN REFERENCE</div>
-        <div style="font-size: 1.1rem; font-weight: 800; color: var(--primary-red); margin-top: 2px;">Billboard ${q.reference}</div>
+        <div style="font-size: 1.1rem; font-weight: 800; color: var(--primary-red); margin-top: 2px;">Billboard ${q.id}</div>
         <div style="font-size: 0.9rem; color: #555;">Location: ${q.media_location}</div>
       </div>
     </div>
@@ -811,7 +811,7 @@ export async function downloadQuotationPdf(quotationData) {
     doc.setFontSize(10.5);
     setColor(doc, RED);
     doc.text(
-      quotationData.reference ? `Billboard ${quotationData.reference}` : "Billboard Ref",
+      quotationData.reference ? `Billboard ${quotationData.id}` : "Billboard Ref",
       rightColX,
       infoY + 5,
       { maxWidth: colMaxW }
