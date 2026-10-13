@@ -1,6 +1,6 @@
 // Client Dashboard Manager (Page 10)
 import { getCurrentUser, setCurrentUser, showPage } from './auth.js';
-import { fetchPendingBookings, fetchActiveBookings, fetchQuotations } from './supabaseClient.js';
+import { fetchPendingBookings, fetchActiveBookings, fetchQuotations, deletePendingBooking, updateUserProfile, fetchUserProfile, sendPasswordResetEmail, deleteUserAccount } from './supabaseClient.js';
 
 let currentQuotations = [];
 let activeBookingsData = [];
@@ -79,7 +79,7 @@ export function renderDashboardUser() {
 
   refreshDashboardPerformances();
   refreshDashboardRequests();
-  refreshQuotations();
+  refreshQuotations().then(() => refreshSpendingChart());
 }
 
 function switchDashboardTab(tabName) {
@@ -87,11 +87,13 @@ function switchDashboardTab(tabName) {
   const requestsTab = document.getElementById('dashTabRequests');
   const activeBillboardsTab = document.getElementById('dashTabActiveBillboards');
   const quotationsTab = document.getElementById('dashTabQuotations');
+  const accountTab = document.getElementById('dashTabAccount');
 
   if (mainTab) mainTab.style.display = 'none';
   if (requestsTab) requestsTab.style.display = 'none';
   if (activeBillboardsTab) activeBillboardsTab.style.display = 'none';
   if (quotationsTab) quotationsTab.style.display = 'none';
+  if (accountTab) accountTab.style.display = 'none';
 
   if (tabName === 'requests' && requestsTab) {
     requestsTab.style.display = 'block';
@@ -102,6 +104,9 @@ function switchDashboardTab(tabName) {
   } else if (tabName === 'quotations' && quotationsTab) {
     quotationsTab.style.display = 'block';
     refreshQuotations();
+  } else if (tabName === 'account' && accountTab) {
+    accountTab.style.display = 'block';
+    renderAccountTab();
   } else if (mainTab) {
     mainTab.style.display = 'block';
     refreshDashboardPerformances();
@@ -251,7 +256,7 @@ export async function refreshDashboardRequests() {
   if (!requests || requests.length === 0) {
     tbody.innerHTML = `
       <tr>
-        <td colspan="6" style="text-align: center; padding: 24px; color: #666;">
+        <td colspan="7" style="text-align: center; padding: 24px; color: #666;">
           No pending billboard requests found. Click "New Billboard Request" to book a billboard.
         </td>
       </tr>
@@ -288,6 +293,12 @@ export async function refreshDashboardRequests() {
       ? `<button class="btn-view-pkg" data-id="${req.id}" style="font-size: 0.75rem; padding: 4px 8px; border-radius: 6px; border: 1px solid #ccc; background: #fff; cursor: pointer;">View Billboards</button>`
       : '';
 
+    // Only allow cancellation for pending/in review statuses
+    const isCancellable = ['pending', 'in review', 'in_review'].includes(statusText.replace(' ', '_'));
+    const cancelBtn = isCancellable
+      ? `<button class="btn-cancel-request" data-id="${req.id}" style="font-size: 0.75rem; padding: 5px 10px; border-radius: 6px; border: 1.5px solid #EF4444; background: #FEF2F2; color: #DC2626; font-weight: 700; cursor: pointer;">Cancel</button>`
+      : `<span style="font-size:0.75rem;color:#aaa;font-style:italic;">N/A</span>`;
+
     return `
       <tr>
         <td style="font-weight: 800; color: #111;">
@@ -299,6 +310,7 @@ export async function refreshDashboardRequests() {
         <td>${services}</td>
         <td>${statusBadge}</td>
         <td>${new Date(req.created_at || Date.now()).toLocaleDateString()}</td>
+        <td>${cancelBtn}</td>
       </tr>
     `;
   }).join('');
@@ -309,6 +321,45 @@ export async function refreshDashboardRequests() {
       const id = e.currentTarget.getAttribute('data-id');
       const req = requests.find(r => String(r.id) === String(id));
       if (req) openPendingPackageModal(req);
+    });
+  });
+
+  // Bind cancel buttons
+  tbody.querySelectorAll('.btn-cancel-request').forEach(btn => {
+    btn.addEventListener('click', async (e) => {
+      const id = e.currentTarget.getAttribute('data-id');
+      const req = requests.find(r => String(r.id) === String(id));
+      const label = req ? (req.billboard_id || `Request #${id}`) : `Request #${id}`;
+
+      // Show confirmation dialog
+      const confirmed = await showConfirmDialog(
+        'Cancel Billboard Request',
+        `Are you sure you want to cancel your request for <strong>${label}</strong>? This action cannot be undone.`,
+        'Yes, Cancel Request',
+        'Keep Request'
+      );
+
+      if (!confirmed) return;
+
+      btn.disabled = true;
+      btn.textContent = 'Cancelling...';
+
+      try {
+        const result = await deletePendingBooking(id);
+        if (result.success) {
+          showDashboardToast('Request cancelled successfully.', 'success');
+          refreshDashboardRequests();
+        } else {
+          showDashboardToast('Failed to cancel request. Please try again.', 'error');
+          btn.disabled = false;
+          btn.textContent = 'Cancel';
+        }
+      } catch (err) {
+        console.error('Cancel request error:', err);
+        showDashboardToast('An error occurred. Please try again.', 'error');
+        btn.disabled = false;
+        btn.textContent = 'Cancel';
+      }
     });
   });
 }
@@ -938,3 +989,350 @@ export async function downloadQuotationPdf(quotationData) {
   }
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// SPENDING CHART — update donut chart with real quotation values from this month
+// ─────────────────────────────────────────────────────────────────────────────
+function refreshSpendingChart() {
+  const now = new Date();
+  const thisMonth = now.getMonth();
+  const thisYear = now.getFullYear();
+
+  // Sum quotation costs that were created this month
+  let billboardTotal = 0;
+  let printingTotal = 0;
+
+  (currentQuotations || []).forEach(q => {
+    const created = new Date(q.created_at || Date.now());
+    if (created.getMonth() === thisMonth && created.getFullYear() === thisYear) {
+      billboardTotal += parseFloat(q.total_cost_wo_printing) || 0;
+      const pc = Array.isArray(q.printing_cost)
+        ? q.printing_cost.reduce((s, i) => s + (parseFloat(i.cost || i) || 0), 0)
+        : (parseFloat(q.printing_cost) || 0);
+      printingTotal += pc;
+    }
+  });
+
+  const grandTotal = billboardTotal + printingTotal;
+
+  // Update center text
+  const centerText = document.getElementById('donutCenterText');
+  if (centerText) {
+    if (grandTotal > 0) {
+      centerText.textContent = `$${grandTotal.toLocaleString('en-US', { maximumFractionDigits: 0 })}`;
+      centerText.setAttribute('font-size', '4.5');
+    } else {
+      centerText.textContent = 'N/A';
+      centerText.setAttribute('font-size', '6');
+    }
+  }
+
+  // Update legend amounts
+  const billEl = document.getElementById('spendBillboardsAmt');
+  const printEl = document.getElementById('spendPrintingAmt');
+  const totalLine = document.getElementById('spendTotalLine');
+
+  if (billEl) billEl.textContent = grandTotal > 0 ? `$${billboardTotal.toLocaleString('en-US', { maximumFractionDigits: 0 })}` : '';
+  if (printEl) printEl.textContent = grandTotal > 0 ? `$${printingTotal.toLocaleString('en-US', { maximumFractionDigits: 0 })}` : '';
+  if (totalLine) {
+    totalLine.textContent = grandTotal > 0
+      ? `Total this month: $${grandTotal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+      : 'No spending recorded this month';
+  }
+
+  // Update donut arcs
+  const circumference = 100; // stroke-dasharray sums to 100
+  const billboardArc = document.getElementById('donutBillboardArc');
+  const printingArc = document.getElementById('donutPrintingArc');
+
+  if (grandTotal > 0 && billboardArc && printingArc) {
+    const billboardPct = (billboardTotal / grandTotal) * circumference;
+    const printingPct = (printingTotal / grandTotal) * circumference;
+
+    billboardArc.setAttribute('stroke-dasharray', `${billboardPct.toFixed(2)} ${(circumference - billboardPct).toFixed(2)}`);
+    billboardArc.setAttribute('stroke-dashoffset', '25');
+
+    printingArc.setAttribute('stroke-dasharray', `${printingPct.toFixed(2)} ${(circumference - printingPct).toFixed(2)}`);
+    // offset = 25 + billboard portion (so printing starts where billboard ends)
+    printingArc.setAttribute('stroke-dashoffset', `${(circumference - billboardPct + 25).toFixed(2)}`);
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// CONFIRMATION DIALOG — custom in-page confirm modal (no browser alert)
+// ─────────────────────────────────────────────────────────────────────────────
+function showConfirmDialog(title, message, confirmLabel = 'Confirm', cancelLabel = 'Cancel') {
+  return new Promise(resolve => {
+    let overlay = document.getElementById('dashConfirmOverlay');
+    if (!overlay) {
+      overlay = document.createElement('div');
+      overlay.id = 'dashConfirmOverlay';
+      overlay.style.cssText = `
+        position: fixed; inset: 0; background: rgba(0,0,0,0.55); z-index: 9999;
+        display: flex; align-items: center; justify-content: center;
+      `;
+      document.body.appendChild(overlay);
+    }
+
+    overlay.innerHTML = `
+      <div style="background:#fff; border-radius:20px; padding:36px 32px; max-width:420px; width:90%;
+                  border: 3px solid #111; box-shadow: 6px 6px 0 #111; text-align:center;">
+        <h3 style="font-size:1.3rem; font-weight:900; color:#111; margin-bottom:12px;">${title}</h3>
+        <p style="font-size:0.95rem; color:#555; line-height:1.5; margin-bottom:24px;">${message}</p>
+        <div style="display:flex; gap:12px; justify-content:center;">
+          <button id="dashConfirmCancel" style="padding:10px 24px; border-radius:10px; border:2px solid #ccc;
+            background:#f5f5f5; font-weight:700; font-size:0.9rem; cursor:pointer;">${cancelLabel}</button>
+          <button id="dashConfirmOk" style="padding:10px 24px; border-radius:10px; border:2px solid #DC2626;
+            background:#DC2626; color:#fff; font-weight:700; font-size:0.9rem; cursor:pointer;">${confirmLabel}</button>
+        </div>
+      </div>
+    `;
+
+    overlay.style.display = 'flex';
+
+    document.getElementById('dashConfirmOk').onclick = () => {
+      overlay.style.display = 'none';
+      resolve(true);
+    };
+    document.getElementById('dashConfirmCancel').onclick = () => {
+      overlay.style.display = 'none';
+      resolve(false);
+    };
+  });
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// TOAST NOTIFICATION helper
+// ─────────────────────────────────────────────────────────────────────────────
+function showDashboardToast(message, type = 'success') {
+  let container = document.getElementById('toastContainer');
+  if (!container) {
+    container = document.createElement('div');
+    container.id = 'toastContainer';
+    container.style.cssText = 'position:fixed;bottom:24px;right:24px;z-index:10000;display:flex;flex-direction:column;gap:10px;';
+    document.body.appendChild(container);
+  }
+
+  const toast = document.createElement('div');
+  const bg = type === 'success' ? '#16A34A' : '#DC2626';
+  toast.style.cssText = `background:${bg};color:#fff;padding:12px 20px;border-radius:12px;
+    font-weight:700;font-size:0.9rem;box-shadow:0 4px 16px rgba(0,0,0,0.2);
+    animation:fadeIn 0.3s ease;max-width:320px;`;
+  toast.textContent = message;
+  container.appendChild(toast);
+
+  setTimeout(() => {
+    toast.style.opacity = '0';
+    toast.style.transition = 'opacity 0.4s';
+    setTimeout(() => toast.remove(), 400);
+  }, 3500);
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// MY ACCOUNT TAB
+// ─────────────────────────────────────────────────────────────────────────────
+async function renderAccountTab() {
+  const container = document.getElementById('accountTabContent');
+  if (!container) return;
+
+  const user = getCurrentUser();
+  if (!user) {
+    container.innerHTML = `<p style="color:#666;padding:24px;">Please log in to view your account.</p>`;
+    return;
+  }
+
+  // Show loading state
+  container.innerHTML = `<p style="color:#888;padding:24px;">Loading account info...</p>`;
+
+  // Fetch full profile from Supabase
+  const profile = await fetchUserProfile(user.id) || {};
+
+  const name = profile.user_name || user.name || '';
+  const email = profile.email || user.email || '';
+  const phone = profile.phone_number || '';
+  const website = profile.website || '';
+  const businessName = profile.business_name || '';
+  const location = profile.location || '';
+
+  container.innerHTML = `
+    <div style="max-width:720px;">
+
+      <!-- Account Info Card -->
+      <div class="account-card" style="background:#fff;border-radius:20px;border:2px solid #E5E7EB;padding:32px;margin-bottom:24px;box-shadow:0 2px 12px rgba(0,0,0,0.06);">
+        <h3 style="font-size:1.15rem;font-weight:900;color:#111;margin-bottom:6px;">Account Information</h3>
+        <p style="font-size:0.85rem;color:#888;margin-bottom:24px;">Your registered account details. Update any field and click Save.</p>
+
+        <form id="accountInfoForm" style="display:flex;flex-direction:column;gap:16px;">
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+            <div>
+              <label style="font-size:0.8rem;font-weight:700;color:#555;display:block;margin-bottom:4px;">Full Name</label>
+              <input id="accName" type="text" value="${escHtml(name)}" placeholder="Full Name"
+                style="width:100%;padding:10px 14px;border-radius:10px;border:1.5px solid #D1D5DB;font-size:0.95rem;font-family:inherit;box-sizing:border-box;" />
+            </div>
+            <div>
+              <label style="font-size:0.8rem;font-weight:700;color:#555;display:block;margin-bottom:4px;">Business / Company Name</label>
+              <input id="accBusiness" type="text" value="${escHtml(businessName)}" placeholder="Business Name"
+                style="width:100%;padding:10px 14px;border-radius:10px;border:1.5px solid #D1D5DB;font-size:0.95rem;font-family:inherit;box-sizing:border-box;" />
+            </div>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+            <div>
+              <label style="font-size:0.8rem;font-weight:700;color:#555;display:block;margin-bottom:4px;">Email Address</label>
+              <input id="accEmail" type="email" value="${escHtml(email)}" disabled
+                style="width:100%;padding:10px 14px;border-radius:10px;border:1.5px solid #E5E7EB;font-size:0.95rem;font-family:inherit;background:#F9FAFB;color:#999;cursor:not-allowed;box-sizing:border-box;" />
+              <div style="font-size:0.75rem;color:#aaa;margin-top:3px;">Email cannot be changed directly.</div>
+            </div>
+            <div>
+              <label style="font-size:0.8rem;font-weight:700;color:#555;display:block;margin-bottom:4px;">Phone Number</label>
+              <input id="accPhone" type="tel" value="${escHtml(phone)}" placeholder="+1 234 567 8900"
+                style="width:100%;padding:10px 14px;border-radius:10px;border:1.5px solid #D1D5DB;font-size:0.95rem;font-family:inherit;box-sizing:border-box;" />
+            </div>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+            <div>
+              <label style="font-size:0.8rem;font-weight:700;color:#555;display:block;margin-bottom:4px;">Website</label>
+              <input id="accWebsite" type="url" value="${escHtml(website)}" placeholder="https://yourwebsite.com"
+                style="width:100%;padding:10px 14px;border-radius:10px;border:1.5px solid #D1D5DB;font-size:0.95rem;font-family:inherit;box-sizing:border-box;" />
+            </div>
+            <div>
+              <label style="font-size:0.8rem;font-weight:700;color:#555;display:block;margin-bottom:4px;">Location / City</label>
+              <input id="accLocation" type="text" value="${escHtml(location)}" placeholder="e.g. Tripoli, Lebanon"
+                style="width:100%;padding:10px 14px;border-radius:10px;border:1.5px solid #D1D5DB;font-size:0.95rem;font-family:inherit;box-sizing:border-box;" />
+            </div>
+          </div>
+
+          <div id="accountInfoMsg" style="display:none;"></div>
+
+          <div>
+            <button type="submit" id="btnSaveAccountInfo"
+              style="padding:12px 28px;border-radius:12px;border:2px solid #111;background:var(--primary-red,#D72638);
+                     color:#fff;font-weight:800;font-size:0.95rem;cursor:pointer;font-family:inherit;box-shadow:3px 3px 0 #111;">
+              Save Changes
+            </button>
+          </div>
+        </form>
+      </div>
+
+      <!-- Password Card -->
+      <div class="account-card" style="background:#fff;border-radius:20px;border:2px solid #E5E7EB;padding:32px;margin-bottom:24px;box-shadow:0 2px 12px rgba(0,0,0,0.06);">
+        <h3 style="font-size:1.15rem;font-weight:900;color:#111;margin-bottom:6px;">Password & Security</h3>
+        <p style="font-size:0.85rem;color:#888;margin-bottom:20px;">Reset your password by sending a reset link to your registered email.</p>
+        <div id="pwdResetMsg" style="display:none;margin-bottom:14px;"></div>
+        <button id="btnSendPwdReset"
+          style="padding:11px 24px;border-radius:12px;border:2px solid #111;background:#fff;
+                 font-weight:800;font-size:0.9rem;cursor:pointer;font-family:inherit;box-shadow:2px 2px 0 #111;">
+          Send Password Reset Email
+        </button>
+      </div>
+
+      <!-- Danger Zone -->
+      <div class="account-card" style="background:#FFF5F5;border-radius:20px;border:2px solid #FECACA;padding:32px;box-shadow:0 2px 12px rgba(220,38,38,0.07);">
+        <h3 style="font-size:1.15rem;font-weight:900;color:#DC2626;margin-bottom:6px;">Danger Zone</h3>
+        <p style="font-size:0.85rem;color:#888;margin-bottom:20px;">Permanently delete your AdEffect account. All your data will be removed and this cannot be undone.</p>
+        <div id="deleteAccMsg" style="display:none;margin-bottom:14px;"></div>
+        <button id="btnDeleteAccount"
+          style="padding:11px 24px;border-radius:12px;border:2px solid #DC2626;background:#DC2626;color:#fff;
+                 font-weight:800;font-size:0.9rem;cursor:pointer;font-family:inherit;box-shadow:2px 2px 0 #7F1D1D;">
+          Delete My Account
+        </button>
+      </div>
+
+    </div>
+  `;
+
+  // ── Save account info ──────────────────────────────────────────────────────
+  document.getElementById('accountInfoForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const btn = document.getElementById('btnSaveAccountInfo');
+    const msg = document.getElementById('accountInfoMsg');
+    btn.disabled = true;
+    btn.textContent = 'Saving...';
+
+    const updates = {
+      user_name: document.getElementById('accName').value.trim(),
+      business_name: document.getElementById('accBusiness').value.trim(),
+      phone_number: document.getElementById('accPhone').value.trim(),
+      website: document.getElementById('accWebsite').value.trim(),
+      location: document.getElementById('accLocation').value.trim(),
+    };
+
+    const result = await updateUserProfile(user.id, updates);
+
+    if (result.success) {
+      // Update local session name
+      const updated = { ...user, name: updates.user_name };
+      setCurrentUser(updated);
+      const sidebarName = document.getElementById('sidebarProfileName');
+      if (sidebarName) sidebarName.textContent = updates.user_name;
+
+      showInlineMsg(msg, 'Account information updated successfully!', 'success');
+    } else {
+      showInlineMsg(msg, result.error || 'Failed to save changes. Please try again.', 'error');
+    }
+
+    btn.disabled = false;
+    btn.textContent = 'Save Changes';
+  });
+
+  // ── Password reset email ───────────────────────────────────────────────────
+  document.getElementById('btnSendPwdReset').addEventListener('click', async () => {
+    const btn = document.getElementById('btnSendPwdReset');
+    const msg = document.getElementById('pwdResetMsg');
+    btn.disabled = true;
+    btn.textContent = 'Sending...';
+
+    const result = await sendPasswordResetEmail(email);
+    if (result.success) {
+      showInlineMsg(msg, `Password reset email sent to ${email}. Check your inbox.`, 'success');
+    } else {
+      showInlineMsg(msg, result.error || 'Failed to send reset email. Please try again.', 'error');
+    }
+
+    btn.disabled = false;
+    btn.textContent = 'Send Password Reset Email';
+  });
+
+  // ── Delete account ─────────────────────────────────────────────────────────
+  document.getElementById('btnDeleteAccount').addEventListener('click', async () => {
+    const confirmed = await showConfirmDialog(
+      'Delete Account',
+      'This will <strong>permanently delete</strong> your AdEffect account and all associated data. This action cannot be undone.<br><br>Are you absolutely sure?',
+      'Yes, Delete My Account',
+      'Cancel'
+    );
+
+    if (!confirmed) return;
+
+    const btn = document.getElementById('btnDeleteAccount');
+    const msg = document.getElementById('deleteAccMsg');
+    btn.disabled = true;
+    btn.textContent = 'Deleting...';
+
+    const result = await deleteUserAccount(user.id);
+    if (result.success) {
+      showDashboardToast('Account deleted. Redirecting...', 'error');
+      setCurrentUser(null);
+      setTimeout(() => showPage('home'), 2000);
+    } else {
+      showInlineMsg(msg, 'Failed to delete account. Please contact support.', 'error');
+      btn.disabled = false;
+      btn.textContent = 'Delete My Account';
+    }
+  });
+}
+
+// Tiny HTML escaper to prevent XSS in interpolated values
+function escHtml(str) {
+  return String(str || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+// Show inline success/error message inside account cards
+function showInlineMsg(el, text, type) {
+  if (!el) return;
+  const bg = type === 'success' ? '#DCFCE7' : '#FEF2F2';
+  const border = type === 'success' ? '#16A34A' : '#EF4444';
+  const color = type === 'success' ? '#15803D' : '#991B1B';
+  el.style.cssText = `background:${bg};border:1.5px solid ${border};color:${color};
+    padding:10px 14px;border-radius:10px;font-weight:700;font-size:0.88rem;display:block;`;
+  el.textContent = text;
+  setTimeout(() => { el.style.display = 'none'; }, 6000);
+}

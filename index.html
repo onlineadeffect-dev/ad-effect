@@ -1021,6 +1021,7 @@
         <a href="#" class="sidebar-link" data-tab="active">MY ACTIVE BILLBOARDS</a>
         <a href="#" class="sidebar-link" data-tab="requests">BILLBOARD REQUESTS</a>
         <a href="#" class="sidebar-link" data-tab="quotations">QUOTATIONS</a>
+        <a href="#" class="sidebar-link" data-tab="account">MY ACCOUNT</a>
         <!--<a href="#" class="sidebar-link" data-tab="chat">CUSTOMER SUPPORT CHAT</a>-->
       </nav>
 
@@ -1045,11 +1046,11 @@
             </div>
 
             <div class="donut-chart-container">
-              <svg width="220" height="220" viewBox="0 0 42 42">
-                <circle cx="21" cy="21" r="15.91549430918954" fill="#E5E7EB" stroke="#10B981" stroke-width="6" stroke-dasharray="85 15" stroke-dashoffset="25"></circle>
-                <circle cx="21" cy="21" r="15.91549430918954" fill="transparent" stroke="#F97316" stroke-width="6" stroke-dasharray="15 85" stroke-dashoffset="40"></circle>
+              <svg id="spendingDonutSvg" width="220" height="220" viewBox="0 0 42 42">
+                <circle id="donutBillboardArc" cx="21" cy="21" r="15.91549430918954" fill="#E5E7EB" stroke="#10B981" stroke-width="6" stroke-dasharray="85 15" stroke-dashoffset="25"></circle>
+                <circle id="donutPrintingArc" cx="21" cy="21" r="15.91549430918954" fill="transparent" stroke="#F97316" stroke-width="6" stroke-dasharray="15 85" stroke-dashoffset="40"></circle>
                 <g class="chart-text">
-                  <text x="50%" y="46%" dominant-baseline="middle" text-anchor="middle" font-size="6" font-weight="900" fill="#111">N/A</text>
+                  <text id="donutCenterText" x="50%" y="46%" dominant-baseline="middle" text-anchor="middle" font-size="6" font-weight="900" fill="#111">N/A</text>
                 </g>
               </svg>
             </div>
@@ -1058,11 +1059,14 @@
               <div class="legend-item">
                 <div class="legend-dot" style="background-color: #10B981;"></div>
                 <span>Billboards</span>
+                <span id="spendBillboardsAmt" style="font-weight:800;margin-left:6px;color:#10B981;"></span>
               </div>
               <div class="legend-item">
                 <div class="legend-dot" style="background-color: #F97316;"></div>
                 <span>Printing Services</span>
+                <span id="spendPrintingAmt" style="font-weight:800;margin-left:6px;color:#F97316;"></span>
               </div>
+              <div style="margin-top:10px;font-size:0.82rem;color:#888;font-weight:600;" id="spendTotalLine"></div>
             </div>
           </div>
 
@@ -1130,6 +1134,7 @@
                 <th>Extra Services</th>
                 <th>Status</th>
                 <th>Submitted On</th>
+                <th>Actions</th>
               </tr>
             </thead>
             <tbody id="dashboardRequestsTableBody">
@@ -1143,6 +1148,14 @@
       <div id="dashTabQuotations" style="display: none;">
         <h2 class="section-h2-title">My Quotations</h2>
         <div id="quotationsGrid" class="quotations-grid">
+          <!-- Dynamically populated by dashboard.js -->
+        </div>
+      </div>
+
+      <!-- My Account Tab -->
+      <div id="dashTabAccount" style="display: none;">
+        <h2 class="section-h2-title">My Account</h2>
+        <div id="accountTabContent">
           <!-- Dynamically populated by dashboard.js -->
         </div>
       </div>

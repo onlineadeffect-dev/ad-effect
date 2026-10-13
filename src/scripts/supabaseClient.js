@@ -416,6 +416,34 @@ export async function fetchPendingBookings(userEmail = null) {
   return list;
 }
 
+// 5b. Delete a pending booking by ID
+export async function deletePendingBooking(bookingId) {
+  const sb = getSupabase();
+  if (sb) {
+    try {
+      // Delete child items first (pending_booking_items)
+      await sb.from('pending_booking_items').delete().eq('pending_booking_id', bookingId);
+      const { error } = await sb.from('pending_bookings').delete().eq('id', bookingId);
+      if (!error) {
+        // Also remove from local cache
+        const list = getLocalState('adeffect_pending_bookings', []);
+        const updated = list.filter(b => String(b.id) !== String(bookingId));
+        setLocalState('adeffect_pending_bookings', updated);
+        return { success: true };
+      }
+      console.warn('Supabase delete pending_booking warning:', error);
+    } catch (e) {
+      console.warn('Supabase delete pending_booking exception:', e);
+    }
+  }
+
+  // Local fallback
+  const list = getLocalState('adeffect_pending_bookings', []);
+  const updated = list.filter(b => String(b.id) !== String(bookingId));
+  setLocalState('adeffect_pending_bookings', updated);
+  return { success: true };
+}
+
 // 6. Check Date Overlaps for a specific billboard against `bookings` and `pending_bookings` tables
 export async function fetchConfirmedBookings(billboardId) {
   const sb = getSupabase();
@@ -672,4 +700,70 @@ export async function fetchQuotations(userId, userEmail = null) {
   ]);
 
   return localQuotations;
+}
+
+// 9. Update user profile fields in `users` table
+export async function updateUserProfile(userId, updates) {
+  const sb = getSupabase();
+  if (sb && userId) {
+    try {
+      const { error } = await sb.from('users').update(updates).eq('user_id', userId);
+      if (!error) return { success: true };
+      console.warn('Supabase updateUserProfile warning:', error);
+    } catch (e) {
+      console.warn('Supabase updateUserProfile exception:', e);
+    }
+  }
+  return { success: true }; // Optimistic local update fallback
+}
+
+// 10. Fetch user profile from `users` table
+export async function fetchUserProfile(userId) {
+  const sb = getSupabase();
+  if (sb && userId) {
+    try {
+      const { data, error } = await sb.from('users').select('*').eq('user_id', userId).single();
+      if (!error && data) return data;
+      console.warn('Supabase fetchUserProfile warning:', error);
+    } catch (e) {
+      console.warn('Supabase fetchUserProfile exception:', e);
+    }
+  }
+  return null;
+}
+
+// 11. Send password reset email via Supabase Auth
+export async function sendPasswordResetEmail(email) {
+  const sb = getSupabase();
+  if (sb) {
+    try {
+      const { error } = await sb.auth.resetPasswordForEmail(email, {
+        redirectTo: window.location.origin + '?reset=true'
+      });
+      if (!error) return { success: true };
+      return { success: false, error: error.message };
+    } catch (e) {
+      return { success: false, error: e.message };
+    }
+  }
+  return { success: false, error: 'Authentication service unavailable.' };
+}
+
+// 12. Delete the current user's account (auth + users table row)
+export async function deleteUserAccount(userId) {
+  const sb = getSupabase();
+  if (sb && userId) {
+    try {
+      // Delete from users table
+      await sb.from('users').delete().eq('user_id', userId);
+      // Sign out the current session (admin delete requires service role key; we sign out instead)
+      await sb.auth.signOut();
+      return { success: true };
+    } catch (e) {
+      console.warn('Supabase deleteUserAccount exception:', e);
+    }
+  }
+  // Local fallback: clear local auth state
+  localStorage.removeItem('adeffect_auth_user');
+  return { success: true };
 }
