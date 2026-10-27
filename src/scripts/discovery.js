@@ -28,22 +28,65 @@ export async function initDiscovery() {
 
   console.log('Structure values:', [...new Set(billboards.map(b => b.structure))]);
 
-  // Compute real-time availability: a billboard is unavailable if any booking
-  // covers the current moment (now >= start_time AND now <= end_time)
+  // Compute real-time availability: a billboard's availability is strictly
+  // determined by whether or not that billboard is currently taken.
   const now = Date.now();
   allBillboards = billboards.map(b => {
-    const isCurrentlyBooked = allBookings.some(booking => {
-      if (booking.billboard_id !== b.billboard_id) return false;
-      const bStart = new Date(booking.start_time).getTime();
-      const bEnd   = new Date(booking.end_time).getTime();
-      return !isNaN(bStart) && !isNaN(bEnd) && now >= bStart && now <= bEnd;
-    });
+    // 1. Direct record check: billboard marked taken or unavailable in catalog
+    const isExplicitlyUnavailable = b.is_available === false ||
+      (typeof b.is_available === 'string' &&
+        (b.is_available.toLowerCase().includes('unavail') || b.is_available.toLowerCase().includes('taken')));
+
+    // 2. Booking overlap check: active or approved booking currently taking this billboard
+    let coveringBooking = null;
+    for (const booking of allBookings) {
+      const bIds = Array.isArray(booking.billboard_id)
+        ? booking.billboard_id.map(id => String(id).toUpperCase())
+        : (booking.billboard_id ? [String(booking.billboard_id).toUpperCase()] : []);
+
+      // Also check requested_booking_items / items if present
+      const childItems = booking.requested_booking_items || booking.pending_booking_items || booking.items || [];
+      childItems.forEach(item => {
+        if (item && item.billboard_id) bIds.push(String(item.billboard_id).toUpperCase());
+      });
+
+      if (!bIds.includes(String(b.billboard_id).toUpperCase())) continue;
+
+      const bStart = new Date(booking.start_time || booking.start_date).getTime();
+      const bEnd = new Date(booking.end_time || booking.end_date).getTime();
+
+      const timeMatches = !isNaN(bStart) && !isNaN(bEnd) && now >= bStart && now <= bEnd;
+      const isActiveFlag = booking.is_active === true && (isNaN(bEnd) || now <= bEnd);
+
+      if (timeMatches || isActiveFlag) {
+        coveringBooking = booking;
+        break;
+      }
+    }
+
+    const isCurrentlyTaken = isExplicitlyUnavailable || !!coveringBooking;
+
+    let availStatus = 'Available';
+    if (isCurrentlyTaken) {
+      if (coveringBooking && (coveringBooking.end_time || coveringBooking.end_date)) {
+        const untilDate = new Date(coveringBooking.end_time || coveringBooking.end_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+        availStatus = `Unavailable until ${untilDate}`;
+      } else if (b.available_until) {
+        const untilDate = new Date(b.available_until).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+        availStatus = `Unavailable until ${untilDate}`;
+      } else {
+        availStatus = 'Unavailable until...';
+      }
+    }
+
     return {
       ...b,
-      is_available: isCurrentlyBooked ? 'Unavailable until...' : 'Available'
+      is_available: availStatus,
+      is_taken: isCurrentlyTaken
     };
   });
 
+  allBillboards.sort(compareBillboards);
   renderBillboards(allBillboards);
 
   // Search input handler
@@ -210,9 +253,13 @@ function applyFilters() {
 
     // 4. Availability filter
     if (activeFilters.availability.length > 0) {
-      const matchAvail = activeFilters.availability.some(a => 
-        availStr.includes(a.toLowerCase())
-      );
+      const isCardAvail = !b.is_taken && (availStr.startsWith('available') || availStr === 'true');
+      const matchAvail = activeFilters.availability.some(a => {
+        const filterVal = a.toLowerCase();
+        if (filterVal === 'available') return isCardAvail;
+        if (filterVal === 'unavailable') return !isCardAvail;
+        return availStr.includes(filterVal);
+      });
       if (!matchAvail) return false;
     }
 
@@ -253,6 +300,59 @@ function getStructureKey(structureStr) {
   if (s.includes('bridge')) return 'bridge';
   if (s.includes('lightpole') || s.includes('polebanner')) return 'lightpole banners';
   return 'other';
+}
+
+export function parseBillboardCode(rawId) {
+  if (!rawId) return { prefix: '', num: 0, baseCode: '', side: '', raw: '' };
+  const str = String(rawId).trim().toUpperCase();
+
+  // Match pattern like "U0015-A", "MG0019-B", "MP005_A", "U002 A", "U0015A"
+  const structuredMatch = str.match(/^([A-Z]+)[-_\s]*(\d+)(?:[-_\s]*([A-Z0-9]+))?$/i);
+  if (structuredMatch) {
+    const prefix = structuredMatch[1];
+    const num = parseInt(structuredMatch[2], 10);
+    const baseCode = `${prefix}${structuredMatch[2]}`;
+    const side = structuredMatch[3] || '';
+    return { prefix, num, baseCode, side, raw: str };
+  }
+
+  // Fallback for codes with hyphen/space/underscore before side (e.g. "WALL-1-A")
+  const dashMatch = str.match(/^(.*?)[-_\s]+([A-Z0-9])$/i);
+  if (dashMatch) {
+    return { prefix: dashMatch[1], num: 0, baseCode: dashMatch[1], side: dashMatch[2], raw: str };
+  }
+
+  return { prefix: str, num: 0, baseCode: str, side: '', raw: str };
+}
+
+export function compareBillboards(a, b) {
+  const pA = parseBillboardCode(a.billboard_id || a.id);
+  const pB = parseBillboardCode(b.billboard_id || b.id);
+
+  // 1. Compare prefix alphabetically (e.g. MG vs MP vs U)
+  if (pA.prefix !== pB.prefix) {
+    const compPrefix = pA.prefix.localeCompare(pB.prefix);
+    if (compPrefix !== 0) return compPrefix;
+  }
+
+  // 2. Compare numeric part numerically (so U2 comes before U15)
+  if (pA.num !== pB.num) {
+    return pA.num - pB.num;
+  }
+
+  // 3. Compare baseCode if numbers are equal (handles leading zeroes)
+  if (pA.baseCode !== pB.baseCode) {
+    const compBase = pA.baseCode.localeCompare(pB.baseCode, undefined, { numeric: true });
+    if (compBase !== 0) return compBase;
+  }
+
+  // 4. Compare subside alphabetically (A before B, B before C)
+  if (pA.side !== pB.side) {
+    return pA.side.localeCompare(pB.side, undefined, { numeric: true });
+  }
+
+  // 5. Fallback to raw string
+  return (pA.raw || '').localeCompare(pB.raw || '');
 }
 
 // Helper to calculate number of months between start and end date
@@ -372,6 +472,7 @@ function renderBillboards(list) {
   STRUCTURE_ORDER.forEach(item => {
     const items = grouped[item.key];
     if (items && items.length > 0) {
+      items.sort(compareBillboards);
       sectionsHtml += `
         <div class="structure-section" style="width: 100%;">
           <div class="structure-title-row" style="display: flex; align-items: center; gap: 12px; margin-bottom: 20px; padding-bottom: 10px; border-bottom: 2px solid #E2E8F0;">
@@ -390,6 +491,7 @@ function renderBillboards(list) {
   Object.keys(grouped['other']).forEach(structName => {
     const items = grouped['other'][structName];
     if (items && items.length > 0) {
+      items.sort(compareBillboards);
       sectionsHtml += `
         <div class="structure-section" style="width: 100%;">
           <div class="structure-title-row" style="display: flex; align-items: center; gap: 12px; margin-bottom: 20px; padding-bottom: 10px; border-bottom: 2px solid #E2E8F0;">

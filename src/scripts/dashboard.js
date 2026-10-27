@@ -1,6 +1,5 @@
-// Client Dashboard Manager (Page 10)
 import { getCurrentUser, setCurrentUser, showPage } from './auth.js';
-import { fetchPendingBookings, fetchActiveBookings, fetchQuotations, deletePendingBooking, updateUserProfile, fetchUserProfile, sendPasswordResetEmail, deleteUserAccount } from './supabaseClient.js';
+import { fetchBillboards, fetchPendingBookings, fetchActiveBookings, fetchQuotations, deletePendingBooking, updateUserProfile, fetchUserProfile, sendPasswordResetEmail, deleteUserAccount } from './supabaseClient.js';
 
 let currentQuotations = [];
 let activeBookingsData = [];
@@ -168,14 +167,19 @@ export async function refreshDashboardPerformances() {
   });
 }
 
-function refreshActiveBillboardsTab() {
+export async function refreshActiveBillboardsTab() {
   const container = document.getElementById('activeBillboardsGrid');
   if (!container) return;
+
+  const user = getCurrentUser();
+  const userId = user ? user.id : null;
+  activeBookingsData = await fetchActiveBookings(userId);
 
   if (!activeBookingsData || activeBookingsData.length === 0) {
     container.innerHTML = `
       <div style="grid-column: 1 / -1; text-align: center; padding: 32px; background: #FFFFFF; border-radius: 16px; border: 2px dashed #ccc;">
         <h3 style="font-size: 1.2rem; font-weight: 800; color: #666;">No active billboards</h3>
+        <p style="color: #888; margin-top: 4px;">Once your billboard request is approved, active billboards representing your campaign will be displayed here.</p>
       </div>
     `;
     return;
@@ -188,7 +192,7 @@ function refreshActiveBillboardsTab() {
     const location = bb.location || 'Location Not Specified';
 
     return `
-      <div class="billboard-card">
+      <div class="billboard-card active-bb-card" data-booking-id="${b.id}" style="cursor: pointer;">
         <div class="card-image-wrapper">
           <img src="${imgUrl}" alt="Billboard ${billboardId}" />
           <div class="billboard-tag">${billboardId}<span>Active</span></div>
@@ -197,10 +201,19 @@ function refreshActiveBillboardsTab() {
           <h3 class="card-title">${billboardId}</h3>
           <div class="card-location">${location}</div>
           <div style="font-weight: 800; color: #16a34a; margin-top: 8px;">Status: Active Campaign</div>
+          <button class="btn-card-action" style="margin-top: 12px; font-size: 0.85rem; padding: 8px;">View Campaign Details</button>
         </div>
       </div>
     `;
   }).join('');
+
+  container.querySelectorAll('.active-bb-card').forEach(card => {
+    card.addEventListener('click', () => {
+      const bookingId = card.getAttribute('data-booking-id');
+      const booking = activeBookingsData.find(item => String(item.id) === String(bookingId));
+      if (booking) openActiveBillboardModal(booking);
+    });
+  });
 }
 
 function openActiveBillboardModal(booking) {
@@ -250,8 +263,8 @@ export async function refreshDashboardRequests() {
   const tbody = document.getElementById('dashboardRequestsTableBody');
   if (!tbody) return;
 
-  const email = user ? user.email : null;
-  const requests = await fetchPendingBookings(email);
+  const userId = user ? user.id : null;
+  const requests = await fetchPendingBookings(userId);
 
   if (!requests || requests.length === 0) {
     tbody.innerHTML = `
@@ -272,26 +285,36 @@ export async function refreshDashboardRequests() {
     const statusLabel = statusText.charAt(0).toUpperCase() + statusText.slice(1);
     const statusBadge = `<span class="status-badge status-${statusText}">${statusLabel}</span>`;
 
-    const services = Array.isArray(req.extra_services) 
-      ? req.extra_services.join(', ') 
-      : (req.extra_services || 'None');
+    const rawServices = req.extra_services || req.extra_servirec;
+    const services = Array.isArray(rawServices) 
+      ? rawServices.join(', ') 
+      : (rawServices || 'None');
 
     const briefLink = req.brief_url 
       ? `<a href="${req.brief_url}" target="_blank" style="color: var(--primary-red); font-weight: 700; text-decoration: underline;">View PDF Brief</a>` 
       : 'No File';
 
     let displayId = req.billboard_id || 'N/A';
+    if (Array.isArray(req.billboard_id)) {
+      displayId = req.billboard_id.join(', ');
+    }
     
-    // Check if it's a package
-    if (req.pending_booking_items && req.pending_booking_items.length > 0) {
-      displayId = `Package (${req.pending_booking_items.length} Billboards)`;
-    } else if (req.items && req.items.length > 0) {
-      displayId = `Package (${req.items.length} Billboards)`;
+    // Check if it's a package (multiple billboards)
+    const itemCount = (req.requested_booking_items && req.requested_booking_items.length) ||
+                      (req.pending_booking_items && req.pending_booking_items.length) || 
+                      (req.items && req.items.length) || 
+                      (Array.isArray(req.billboard_id) ? req.billboard_id.length : 1);
+
+    const isPackage = itemCount > 1;
+
+    if (isPackage) {
+      displayId = `Package (${itemCount} Billboards)`;
     }
 
-    const detailsBtn = (req.pending_booking_items && req.pending_booking_items.length > 0) || (req.items && req.items.length > 0)
-      ? `<button class="btn-view-pkg" data-id="${req.id}" style="font-size: 0.75rem; padding: 4px 8px; border-radius: 6px; border: 1px solid #ccc; background: #fff; cursor: pointer;">View Billboards</button>`
-      : '';
+    const detailsBtn = `<button class="btn-view-pkg" data-id="${req.id}" style="font-size: 0.75rem; padding: 4px 8px; border-radius: 6px; border: 1.5px solid #111; background: #fff; font-weight: 700; cursor: pointer; display: inline-flex; align-items: center; gap: 4px; box-shadow: 1.5px 1.5px 0 #111;" title="View Billboard Details">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+      View Billboards
+    </button>`;
 
     // Only allow cancellation for pending/in review statuses
     const isCancellable = ['pending', 'in review', 'in_review'].includes(statusText.replace(' ', '_'));
@@ -364,7 +387,7 @@ export async function refreshDashboardRequests() {
   });
 }
 
-function openPendingPackageModal(req) {
+async function openPendingPackageModal(req) {
   let modal = document.getElementById('pendingPackageModal');
   if (!modal) {
     modal = document.createElement('div');
@@ -372,24 +395,172 @@ function openPendingPackageModal(req) {
     modal.className = 'modal-overlay';
     document.body.appendChild(modal);
   }
-  
-  const items = req.pending_booking_items || req.items || [];
-  
+
+  // Show loading skeleton while catalog is loaded
   modal.innerHTML = `
-    <div class="filter-modal-content" style="max-width: 600px; padding: 32px;">
-      <button class="close-modal-btn" onclick="document.getElementById('pendingPackageModal').classList.remove('active')" style="position: absolute; right: 24px; top: 20px;">&times;</button>
-      <h2 style="font-size: 1.5rem; font-weight: 900; margin-bottom: 20px;">Package Details</h2>
-      <div style="display: flex; flex-direction: column; gap: 12px; max-height: 400px; overflow-y: auto;">
-        ${items.map(item => `
-          <div style="padding: 12px; border: 1px solid #eee; border-radius: 8px; background: #f9f9f9;">
-            <div style="font-weight: 800; font-size: 1.1rem; color: var(--primary-red);">${item.billboard_id}</div>
-            <div style="font-size: 0.9rem; color: #555; margin-top: 4px;">Start: ${new Date(item.start_time).toLocaleDateString()}</div>
-            <div style="font-size: 0.9rem; color: #555;">End: ${new Date(item.end_time).toLocaleDateString()}</div>
+    <div class="filter-modal-content" style="max-width: 680px; width: 92%; padding: 32px; border: 3px solid #111; box-shadow: 10px 10px 0px #111; border-radius: 24px; background: #fff; text-align: center;">
+      <div style="font-weight: 800; font-size: 1.1rem; color: #333; padding: 24px 0;">Loading billboard details...</div>
+    </div>
+  `;
+  modal.classList.add('active');
+
+  let catalog = [];
+  try {
+    catalog = await fetchBillboards();
+  } catch (e) {
+    console.warn('Could not fetch catalog for details modal:', e);
+  }
+
+  // Extract items from requested_booking_items, items, or fallback to billboard_id array/string
+  let items = req.requested_booking_items || req.pending_booking_items || req.items || [];
+  if (!items || items.length === 0) {
+    let bb = req.billboard_id;
+    if (typeof bb === 'string') {
+      try {
+        const parsed = JSON.parse(bb);
+        if (Array.isArray(parsed)) bb = parsed;
+      } catch (e) {
+        if (bb.includes(',')) {
+          bb = bb.split(',').map(s => s.trim()).filter(Boolean);
+        }
+      }
+    }
+    if (Array.isArray(bb)) {
+      items = bb.map(id => ({
+        billboard_id: id,
+        start_date: req.start_time,
+        end_date: req.end_time
+      }));
+    } else if (bb) {
+      items = [{
+        billboard_id: bb,
+        start_date: req.start_time,
+        end_date: req.end_time
+      }];
+    }
+  }
+
+  // Calculate duration
+  const startD = req.start_time ? new Date(req.start_time) : (items[0] && items[0].start_date ? new Date(items[0].start_date) : null);
+  const endD = req.end_time ? new Date(req.end_time) : (items[0] && items[0].end_date ? new Date(items[0].end_date) : null);
+  let months = 1;
+  if (startD && endD && !isNaN(startD) && !isNaN(endD) && endD > startD) {
+    const diffDays = Math.round((endD.getTime() - startD.getTime()) / (1000 * 60 * 60 * 24));
+    months = Math.max(1, Math.round(diffDays / 30));
+  }
+
+  const startDateFormatted = startD && !isNaN(startD) ? startD.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'N/A';
+  const endDateFormatted = endD && !isNaN(endD) ? endD.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'N/A';
+
+  // Calculate total price if not provided
+  let calculatedBillboardTotal = 0;
+  let calculatedPrintingTotal = 0;
+
+  const resolvedItems = items.map(item => {
+    const bId = String(item.billboard_id || '').toUpperCase();
+    const bb = (catalog || []).find(b => String(b.billboard_id || '').toUpperCase() === bId) || {};
+
+    const monthlyCost = Number(item.price_at_the_time_of_booking || item.numericPrice || bb.numericPrice || 0) ||
+      (typeof bb.price === 'string' ? parseFloat(bb.price.replace(/[^0-9.]/g, '')) || 0 : 0);
+
+    const printingCost = Number(item.printing_cost || 0);
+
+    calculatedBillboardTotal += (monthlyCost * months);
+    calculatedPrintingTotal += printingCost;
+
+    return {
+      ...item,
+      billboard_id: item.billboard_id || bb.billboard_id || 'Billboard',
+      image_url: bb.image_url || '/assets/placeholders/billboard1.jpg',
+      location: bb.location || 'North Lebanon / Prime Location',
+      structure: bb.structure || bb.type || 'Outdoor Billboard',
+      size: bb.size || 'Standard Size',
+      monthlyCost,
+      printingCost,
+      totalItemCost: (monthlyCost * months) + printingCost
+    };
+  });
+
+  const finalTotal = req.total_price != null 
+    ? Number(req.total_price) 
+    : (calculatedBillboardTotal + calculatedPrintingTotal);
+
+  const rawServices = req.extra_services || req.extra_servirec;
+  const servicesList = Array.isArray(rawServices) 
+    ? rawServices 
+    : (rawServices ? [rawServices] : []);
+
+  const statusText = (req.status || 'pending').toLowerCase();
+  const statusLabel = statusText.charAt(0).toUpperCase() + statusText.slice(1);
+
+  modal.innerHTML = `
+    <div class="filter-modal-content" style="max-width: 680px; width: 92%; padding: 32px; border: 3px solid #111; box-shadow: 10px 10px 0px #111; border-radius: 24px; max-height: 85vh; display: flex; flex-direction: column; overflow: hidden; background: #fff;">
+      <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 20px; border-bottom: 2px solid #eee; padding-bottom: 16px;">
+        <div>
+          <div style="font-size: 0.8rem; font-weight: 800; color: #888; text-transform: uppercase; letter-spacing: 1px;">Request #${req.id}</div>
+          <h2 style="font-size: 1.6rem; font-weight: 900; color: #111; margin: 4px 0 0 0;">Billboard Request Details</h2>
+        </div>
+        <button class="close-modal-btn" onclick="document.getElementById('pendingPackageModal').classList.remove('active')" style="background: #f5f5f5; border: 2px solid #111; border-radius: 50%; width: 36px; height: 36px; font-size: 1.2rem; cursor: pointer; display: grid; place-content: center; font-weight: 900;">&times;</button>
+      </div>
+
+      <div style="display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 20px; padding: 14px 18px; background: #F9FAFB; border-radius: 14px; border: 1.5px solid #E5E7EB; font-size: 0.88rem;">
+        <div><strong>Status:</strong> <span class="status-badge status-${statusText}" style="margin-left: 4px;">${statusLabel}</span></div>
+        <div style="color: #ccc;">|</div>
+        <div><strong>Campaign Period:</strong> <span style="color: #111; font-weight: 700;">${startDateFormatted} ➔ ${endDateFormatted}</span> (${months} month${months > 1 ? 's' : ''})</div>
+        <div style="color: #ccc;">|</div>
+        <div><strong>Total Billboards:</strong> <span style="font-weight: 800; color: var(--primary-red);">${resolvedItems.length}</span></div>
+      </div>
+
+      <div style="flex: 1; overflow-y: auto; padding-right: 4px; display: flex; flex-direction: column; gap: 14px;">
+        <div style="font-size: 0.85rem; font-weight: 800; color: #555; text-transform: uppercase; letter-spacing: 0.5px;">Requested Billboards (${resolvedItems.length})</div>
+        ${resolvedItems.map(item => `
+          <div style="display: flex; gap: 16px; padding: 14px; border: 2px solid #111; border-radius: 16px; background: #fff; box-shadow: 4px 4px 0 #111; align-items: center;">
+            <img src="${item.image_url}" alt="${item.billboard_id}" style="width: 100px; height: 75px; object-fit: cover; border-radius: 10px; border: 1.5px solid #111; flex-shrink: 0;" onerror="this.src='https://images.unsplash.com/photo-1542751371-adc38448a05e?auto=format&fit=crop&w=800&q=80';" />
+            <div style="flex: 1; min-width: 0;">
+              <div style="display: flex; justify-content: space-between; align-items: baseline;">
+                <span style="font-weight: 900; font-size: 1.15rem; color: var(--primary-red);">${item.billboard_id}</span>
+                <span style="font-size: 0.85rem; font-weight: 800; color: #111;">$ ${item.monthlyCost.toLocaleString()} <span style="font-size: 0.72rem; color: #666; font-weight: 600;">/ mo</span></span>
+              </div>
+              <div style="font-size: 0.82rem; color: #444; font-weight: 600; margin-top: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+                📍 ${item.location}
+              </div>
+              <div style="display: flex; gap: 10px; margin-top: 6px; font-size: 0.75rem; color: #666; font-weight: 700;">
+                <span style="background: #f1f5f9; padding: 2px 8px; border-radius: 6px;">${item.structure}</span>
+                <span style="background: #f1f5f9; padding: 2px 8px; border-radius: 6px;">Size: ${item.size}</span>
+                ${item.printingCost > 0 ? `<span style="background: #FEF3C7; color: #92400E; padding: 2px 8px; border-radius: 6px;">Print: $${item.printingCost.toLocaleString()}</span>` : ''}
+              </div>
+            </div>
           </div>
         `).join('')}
+
+        <!-- Additional Campaign Details -->
+        <div style="margin-top: 10px; padding: 14px 18px; border-radius: 14px; background: #F8FAFC; border: 1.5px solid #E2E8F0; font-size: 0.85rem;">
+          <div style="margin-bottom: 8px;">
+            <strong style="color: #333;">Extra Services:</strong>
+            <span style="margin-left: 6px; color: #555;">
+              ${servicesList.length > 0 ? servicesList.map(s => `<span style="display: inline-block; background: #fff; border: 1px solid #ccc; padding: 2px 8px; border-radius: 6px; font-size: 0.78rem; font-weight: 700; margin-right: 4px;">${s}</span>`).join('') : 'None selected'}
+            </span>
+          </div>
+          <div>
+            <strong style="color: #333;">Brief Document:</strong>
+            <span style="margin-left: 6px;">
+              ${req.brief_url ? `<a href="${req.brief_url}" target="_blank" style="color: var(--primary-red); font-weight: 800; text-decoration: underline;">📄 View Attached PDF Brief</a>` : '<span style="color: #888; font-style: italic;">No Brief Uploaded</span>'}
+            </span>
+          </div>
+        </div>
       </div>
-      <div style="margin-top: 20px; font-weight: 800; font-size: 1.1rem; border-top: 2px solid #eee; padding-top: 12px;">
-        Total Estimated Price: $ ${req.total_price ? req.total_price.toLocaleString() : 'N/A'}
+
+      <!-- Footer Total Box -->
+      <div style="margin-top: 20px; border-top: 2px solid #111; padding-top: 16px; display: flex; justify-content: space-between; align-items: center;">
+        <div>
+          <div style="font-size: 0.78rem; font-weight: 700; color: #888; text-transform: uppercase;">Estimated Total (${months} mo)</div>
+          <div style="font-size: 1.5rem; font-weight: 900; color: var(--primary-red);">
+            $ ${finalTotal > 0 ? finalTotal.toLocaleString() : 'Pending Quote'}
+          </div>
+        </div>
+        <button onclick="document.getElementById('pendingPackageModal').classList.remove('active')" style="padding: 10px 24px; border-radius: 12px; background: #111; color: #fff; font-weight: 800; font-size: 0.9rem; border: none; cursor: pointer;">
+          Close
+        </button>
       </div>
     </div>
   `;
@@ -403,13 +574,99 @@ export async function refreshQuotations() {
   if (!container) return;
 
   const userId = user ? (user.id || user.email) : null;
-  currentQuotations = await fetchQuotations(userId, user ? user.email : null);
 
-  if (!currentQuotations || currentQuotations.length === 0) {
+  // 1. Fetch all explicit quotations belonging to this client from database
+  const rawQuotations = await fetchQuotations(userId, user ? user.email : null);
+
+  // 2. Fetch approved bookings for the client (representing active campaigns)
+  const approvedBookings = await fetchActiveBookings(userId);
+
+  // 3. Combine explicit database quotations and approved booking quotations
+  const approvedBookingIds = new Set();
+  const approvedBillboardIds = new Set();
+
+  (approvedBookings || []).forEach(b => {
+    if (b.id !== undefined && b.id !== null) approvedBookingIds.add(String(b.id));
+    if (b.parent_booking_id) approvedBookingIds.add(String(b.parent_booking_id));
+    if (b.booking_id) approvedBookingIds.add(String(b.booking_id));
+
+    if (b.billboard_id) approvedBillboardIds.add(String(b.billboard_id).toUpperCase());
+    if (b.billboards && b.billboards.billboard_id) {
+      approvedBillboardIds.add(String(b.billboards.billboard_id).toUpperCase());
+    }
+  });
+
+  const matchedQuotations = [];
+  const handledKeys = new Set();
+
+  // Always include all explicit quotations belonging to this client from database
+  (rawQuotations || []).forEach(q => {
+    const qKey = String(q.id || q.booking_id || Math.random());
+    if (!handledKeys.has(qKey)) {
+      handledKeys.add(qKey);
+      if (q.booking_id) handledKeys.add(`booking_${q.booking_id}`);
+      matchedQuotations.push(q);
+    }
+  });
+
+  // For any approved booking that does not already have an explicit quotation in database,
+  // synthesize a linked quotation so the client can inspect and download it
+  (approvedBookings || []).forEach(b => {
+    const bIdStr = String(b.id);
+    const bRefStr = String(b.billboard_id || '').toUpperCase();
+
+    if (handledKeys.has(bIdStr) || handledKeys.has(`booking_${bIdStr}`)) {
+      return;
+    }
+
+    const bb = b.billboards || {};
+    const startDate = b.start_time ? new Date(b.start_time) : null;
+    const endDate = b.end_time ? new Date(b.end_time) : null;
+    const printingCost = Number(b.printing_cost || 0);
+    const totalWo = Number(b.total_price ? Math.max(0, b.total_price - printingCost) : (b.price ? parseFloat(String(b.price).replace(/[^0-9.]/g, '')) : 1000));
+    const totalWith = totalWo + printingCost;
+
+    // Build an array of month-name strings (e.g. ["October 2026", "November 2026"])
+    // so that period-based month-row generation works correctly.
+    let periodMonths = [];
+    if (startDate && endDate && !isNaN(startDate) && !isNaN(endDate)) {
+      const cur = new Date(startDate.getFullYear(), startDate.getMonth(), 1);
+      const last = new Date(endDate.getFullYear(), endDate.getMonth(), 1);
+      while (cur <= last) {
+        periodMonths.push(cur.toLocaleDateString('en-US', { month: 'long', year: 'numeric' }));
+        cur.setMonth(cur.getMonth() + 1);
+      }
+    }
+    if (periodMonths.length === 0) periodMonths = ['Campaign Period'];
+
+    matchedQuotations.push({
+      id: b.id || b.booking_id || 501,
+      booking_id: b.id,
+      created_at: b.created_at || new Date().toISOString(),
+      client_id: userId || (user ? user.id : 'client'),
+      client_name: user?.name || user?.business_name || 'Valued Client',
+      media_type: bb.structure || bb.media_type || b.structure || 'Billboard',
+      media_used: 'Backlit Vinyl Print & Installation',
+      reference: b.billboard_id || bb.billboard_id || `Booking #${b.id}`,
+      media_location: bb.location || b.location || 'Tripoli Entrance & Avenue',
+      frequency: 1,
+      period: periodMonths,
+      printing_cost: printingCost,
+      total_cost_wo_printing: totalWo,
+      total_cost_with_printing: totalWith
+    });
+
+    handledKeys.add(bIdStr);
+    handledKeys.add(`booking_${bIdStr}`);
+  });
+
+  currentQuotations = matchedQuotations;
+
+  if (currentQuotations.length === 0) {
     container.innerHTML = `
       <div style="grid-column: 1 / -1; text-align: center; padding: 32px; background: #FFFFFF; border-radius: 16px; border: 2px dashed #ccc;">
         <h3 style="font-size: 1.2rem; font-weight: 800; color: #666;">No quotations available</h3>
-        <p style="color: #888; margin-top: 4px;">Official campaign quotations issued by AdEffect will appear here for your review.</p>
+        <p style="color: #888; margin-top: 4px;">Official campaign quotations linked to your approved billboard bookings will appear here.</p>
       </div>
     `;
     return;
@@ -442,7 +699,13 @@ export async function refreshQuotations() {
             <span style="font-size: 0.9rem; font-weight: 700; color: #555;">Total Amount:</span>
             <span style="font-size: 1.3rem; font-weight: 900; color: var(--primary-red);">${totalWithPrintStr}</span>
           </div>
-          <button class="btn-view-quotation">View Full Quotation &rarr;</button>
+          <div style="display: flex; gap: 8px; margin-top: 12px;">
+            <button class="btn-view-quotation" style="flex: 1;">View Details &rarr;</button>
+            <button class="btn-card-pdf" data-quotation-id="${q.id}" style="padding: 10px 14px; border-radius: 10px; border: 2px solid #111; background: #fff; font-weight: 800; font-size: 0.85rem; cursor: pointer; display: flex; align-items: center; gap: 6px; box-shadow: 2px 2px 0 #111;" title="Download PDF">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+              PDF
+            </button>
+          </div>
         </div>
       </div>
     `;
@@ -450,10 +713,38 @@ export async function refreshQuotations() {
 
   // Bind click listeners to view full quotation document
   container.querySelectorAll('.quotation-card').forEach(card => {
-    card.addEventListener('click', () => {
+    card.addEventListener('click', (e) => {
+      // If clicking the PDF button, don't trigger the card modal
+      if (e.target.closest('.btn-card-pdf')) return;
       const qId = card.getAttribute('data-quotation-id');
       const quotation = currentQuotations.find(item => String(item.id) === String(qId)) || currentQuotations[0];
       if (quotation) openQuotationModal(quotation);
+    });
+  });
+
+  // Bind quick PDF download buttons on cards
+  container.querySelectorAll('.btn-card-pdf').forEach(btn => {
+    btn.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      const qId = btn.getAttribute('data-quotation-id');
+      const quotation = currentQuotations.find(item => String(item.id) === String(qId)) || currentQuotations[0];
+      if (!quotation) return;
+
+      const origText = btn.innerHTML;
+      try {
+        btn.disabled = true;
+        btn.innerHTML = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="animation: spin 1s linear infinite;"><circle cx="12" cy="12" r="10" stroke-opacity="0.3"></circle><path d="M12 2a10 10 0 0 1 10 10"></path></svg> PDF`;
+        await downloadQuotationPdf(quotation);
+        showDashboardToast('Quotation PDF downloaded successfully!', 'success');
+      } catch (err) {
+        console.error('PDF download error:', err);
+        showDashboardToast('Opening print dialog for PDF...', 'success');
+        activeQuotationModalData = quotation;
+        window.print();
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = origText;
+      }
     });
   });
 }
@@ -547,30 +838,33 @@ function printingCostForMonth(printingCostList, month, period) {
   return costForThisMonth;
 }
 
-function drawTable(doc, startX, startY, colWidths, headers, rows, headerAligns = [], rowAligns = [], lastRowBold = false) {
+function drawTable(doc, startX, startY, colWidths, headers, rows, headerAligns = [], rowAligns = [], lastRowBold = false, lastRowColor = null) {
   let curY = startY;
-  const rowHeight = 8;
+  const rowHeight = 7.5;
   const totalWidth = colWidths.reduce((a, b) => a + b, 0);
 
   // Header Background
-  setFill(doc, GREY_LIGHT);
-  doc.rect(startX, curY, totalWidth, rowHeight, "F");
+  setFill(doc, [255, 255, 255]);
+  setDraw(doc, BLACK);
+  doc.setLineWidth(0.35);
+  doc.rect(startX, curY, totalWidth, rowHeight, "FD");
 
   // Header Text
   doc.setFont("helvetica", "bold");
   doc.setFontSize(8.5);
   setColor(doc, BLACK);
-  setDraw(doc, GREY_BORDER);
-  doc.setLineWidth(0.3);
-  doc.line(startX, curY, startX + totalWidth, curY);
-  doc.line(startX, curY + rowHeight, startX + totalWidth, curY + rowHeight);
 
   let colX = startX;
   headers.forEach((h, i) => {
     const w = colWidths[i];
     const align = headerAligns[i] || "left";
-    const textX = align === "right" ? colX + w - 3 : colX + 3;
-    doc.text(h, textX, curY + 5.5, { align });
+    const textX = align === "right" ? colX + w - 4 : (align === "center" ? colX + w / 2 : colX + 4);
+    doc.text(h, textX, curY + 5.2, { align });
+    if (i > 0) {
+      doc.setDrawColor(BLACK[0], BLACK[1], BLACK[2]);
+      doc.setLineWidth(0.35);
+      doc.line(colX, curY, colX, curY + rowHeight);
+    }
     colX += w;
   });
 
@@ -583,28 +877,35 @@ function drawTable(doc, startX, startY, colWidths, headers, rows, headerAligns =
 
     if (isBold) {
       doc.setFont("helvetica", "bold");
-      setFill(doc, [245, 245, 245]);
-      doc.rect(startX, curY, totalWidth, rowHeight, "F");
+      if (lastRowColor) {
+        setColor(doc, lastRowColor);
+      } else {
+        setColor(doc, BLACK);
+      }
     } else {
       doc.setFont("helvetica", "normal");
+      setColor(doc, BLACK);
     }
 
     doc.setFontSize(8.5);
-    setColor(doc, BLACK);
+
+    // Row Box & cell lines
+    setFill(doc, [255, 255, 255]);
+    setDraw(doc, BLACK);
+    doc.setLineWidth(0.35);
+    doc.rect(startX, curY, totalWidth, rowHeight, "FD");
 
     let cellX = startX;
     row.forEach((cell, cIdx) => {
       const w = colWidths[cIdx];
       const align = rowAligns[cIdx] || "left";
-      const textX = align === "right" ? cellX + w - 3 : cellX + 3;
-      doc.text(String(cell), textX, curY + 5.5, { align });
+      const textX = align === "right" ? cellX + w - 4 : (align === "center" ? cellX + w / 2 : cellX + 4);
+      doc.text(String(cell), textX, curY + 5.2, { align });
+      if (cIdx > 0) {
+        doc.line(cellX, curY, cellX, curY + rowHeight);
+      }
       cellX += w;
     });
-
-    // Bottom border for each row
-    setDraw(doc, GREY_BORDER);
-    doc.setLineWidth(0.2);
-    doc.line(startX, curY + rowHeight, startX + totalWidth, curY + rowHeight);
 
     curY += rowHeight;
   });
@@ -619,9 +920,171 @@ function openQuotationModal(q) {
   if (!modal || !docContainer) return;
 
   const dateStr = new Date(q.created_at || Date.now()).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
-  const printCost = typeof q.printing_cost === 'number' ? q.printing_cost : parseFloat(q.printing_cost || 0);
+
+  // Normalize printing_cost — may be a number, a string, or an array of {cost, from_month, to_month} objects
+  let printCost = 0;
+  if (Array.isArray(q.printing_cost)) {
+    printCost = q.printing_cost.reduce((s, item) => s + (parseFloat(item.cost || item) || 0), 0);
+  } else {
+    printCost = typeof q.printing_cost === 'number' ? q.printing_cost : parseFloat(q.printing_cost || 0);
+  }
+
   const totalWoPrint = typeof q.total_cost_wo_printing === 'number' ? q.total_cost_wo_printing : parseFloat(q.total_cost_wo_printing || 0);
   const totalWithPrint = typeof q.total_cost_with_printing === 'number' ? q.total_cost_with_printing : parseFloat(q.total_cost_with_printing || 0);
+
+  const items = q.billboards || q.requested_booking_items || q.items || [];
+  const isMultiBillboard = items.length > 1 || 
+    (Array.isArray(q.billboard_id) && q.billboard_id.length > 1) ||
+    (typeof q.reference === 'string' && (q.reference.toLowerCase().includes('multiple') || q.reference.includes(','))) ||
+    q.campaign_reference === 'Multiple Billboard Sites';
+
+  // Parse period into an array of month name strings.
+  // Handles: arrays (preferred), comma-separated month lists, or date-range fallback.
+  let rawPeriod;
+  if (Array.isArray(q.period)) {
+    rawPeriod = q.period.filter(Boolean);
+  } else if (q.period) {
+    const pStr = String(q.period).trim();
+    // If it looks like a date range ("Oct 1, 2026 - Oct 31, 2026") split by " - " not by comma
+    if (pStr.includes(' - ') || pStr.includes('\u2013')) {
+      rawPeriod = [pStr]; // treat the whole range as one display period
+    } else {
+      // Comma-separated list of month names
+      rawPeriod = pStr.split(',').map(s => s.trim()).filter(Boolean);
+    }
+  } else {
+    rawPeriod = [];
+  }
+  const durationStr = q.duration || (rawPeriod.length > 0 ? `${rawPeriod.length} month${rawPeriod.length > 1 ? 's' : ''}` : '1 month');
+
+  let campaignRefHtml = '';
+  let mediaDetailsHtml = '';
+  let tableHtml = '';
+
+  if (isMultiBillboard) {
+    campaignRefHtml = `
+      <div style="font-size: 0.8rem; font-weight: 800; color: #888; text-transform: uppercase;">CAMPAIGN REFERENCE</div>
+      <div style="font-size: 1.15rem; font-weight: 900; color: var(--primary-red); margin-top: 2px;">Multiple Billboard Sites</div>
+      <div style="font-size: 0.88rem; color: #666; margin-top: 2px;">Pricing: ${durationStr}</div>
+    `;
+
+    mediaDetailsHtml = `
+      <div style="font-size: 0.8rem; font-weight: 800; color: #888; text-transform: uppercase; margin-bottom: 6px;">MEDIA DETAILS</div>
+      <div style="font-size: 0.9rem; color: #111; font-weight: 600;">Type: outdoor &nbsp;|&nbsp; Used: billboard &nbsp;|&nbsp; Duration: ${durationStr}</div>
+    `;
+
+    let multiRows = items;
+    if (!multiRows || multiRows.length === 0) {
+      let bIds = q.billboard_id;
+      if (typeof bIds === 'string') {
+        try { bIds = JSON.parse(bIds); } catch(e) { bIds = bIds.split(',').map(s => s.trim()); }
+      }
+      if (Array.isArray(bIds)) {
+        multiRows = bIds.map(id => ({ billboard_id: id }));
+      }
+    }
+
+    const durMonths = Math.max(1, rawPeriod.length || parseInt(durationStr) || 1);
+    let sumCostMo = 0;
+    let sumPrint = 0;
+    let sumTotal = 0;
+
+    const rowTrs = (multiRows.length > 0 ? multiRows : [{ billboard_id: q.reference || 'Site A' }]).map(item => {
+      const bRef = item.billboard_id || item.reference || 'Billboard';
+      const costMo = Number(item.billboard_cost || item.price_at_the_time_of_booking || item.price || item.numericPrice || (totalWoPrint / Math.max(1, multiRows.length * durMonths))) || 0;
+      const pCost = Number(item.printing_cost != null ? item.printing_cost : (printCost / Math.max(1, multiRows.length))) || 0;
+      const totalItem = (costMo * durMonths) + pCost;
+      sumCostMo += costMo;
+      sumPrint += pCost;
+      sumTotal += totalItem;
+
+      return `
+        <tr>
+          <td style="font-weight: 700; color: #111; padding: 10px 14px; border-right: 1.5px solid #111; border-bottom: 1.5px solid #111;">${bRef}</td>
+          <td style="text-align: right; padding: 10px 14px; border-right: 1.5px solid #111; border-bottom: 1.5px solid #111;">$ ${costMo.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
+          <td style="text-align: right; padding: 10px 14px; border-right: 1.5px solid #111; border-bottom: 1.5px solid #111;">$ ${pCost.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
+          <td style="text-align: right; font-weight: 700; padding: 10px 14px; border-bottom: 1.5px solid #111;">$ ${totalItem.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
+        </tr>
+      `;
+    }).join('');
+
+    tableHtml = `
+      <table class="quotation-table" style="width: 100%; border-collapse: collapse; margin-top: 16px; border: 2px solid #111;">
+        <thead>
+          <tr style="border-bottom: 2px solid #111; background: #fff;">
+            <th style="padding: 10px 14px; text-align: left; font-weight: 800; border-right: 1.5px solid #111;">Billboard Reference</th>
+            <th style="padding: 10px 14px; text-align: right; font-weight: 800; border-right: 1.5px solid #111;">Billboard Cost / Mo</th>
+            <th style="padding: 10px 14px; text-align: right; font-weight: 800; border-right: 1.5px solid #111;">Printing Cost</th>
+            <th style="padding: 10px 14px; text-align: right; font-weight: 800;">Total w/ Printing</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${rowTrs}
+          <tr style="font-weight: 900; color: var(--primary-red); background: #fff;">
+            <td style="padding: 10px 14px; border-right: 1.5px solid #111;">TOTAL</td>
+            <td style="padding: 10px 14px; text-align: right; border-right: 1.5px solid #111;">$ ${(sumCostMo || totalWoPrint).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
+            <td style="padding: 10px 14px; text-align: right; border-right: 1.5px solid #111;">$ ${(sumPrint || printCost).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
+            <td style="padding: 10px 14px; text-align: right;">$ ${(sumTotal || totalWithPrint).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
+          </tr>
+        </tbody>
+      </table>
+    `;
+  } else {
+    let cleanRef = String(q.reference || q.billboard_id || q.id || 'Billboard').trim();
+    cleanRef = cleanRef.replace(/^Billboard\s+/i, '');
+
+    campaignRefHtml = `
+      <div style="font-size: 0.8rem; font-weight: 800; color: #888; text-transform: uppercase;">CAMPAIGN REFERENCE</div>
+      <div style="font-size: 1.15rem; font-weight: 900; color: var(--primary-red); margin-top: 2px;">Billboard ${cleanRef}</div>
+      <div style="font-size: 0.88rem; color: #666; margin-top: 2px;">Location: ${q.media_location || 'Tripoli Highway Main Entrance'}</div>
+    `;
+
+    mediaDetailsHtml = `
+      <div style="font-size: 0.8rem; font-weight: 800; color: #888; text-transform: uppercase; margin-bottom: 6px;">MEDIA DETAILS</div>
+      <div style="font-size: 0.9rem; color: #111; font-weight: 600;">Type: outdoor &nbsp;|&nbsp; Frequency: 1</div>
+    `;
+
+    const monthsList = rawPeriod.length > 0 ? rawPeriod : [dateStr.split(' ')[0] || 'October'];
+    const costPerMo = totalWoPrint / Math.max(1, monthsList.length);
+
+    const rowTrs = monthsList.map((month, idx) => {
+      const pCost = idx === 0 ? printCost : 0;
+      const totalItem = costPerMo + pCost;
+      return `
+        <tr>
+          <td style="font-weight: 700; color: #111; padding: 10px 14px; border-right: 1.5px solid #111; border-bottom: 1.5px solid #111;">${month}</td>
+          <td style="text-align: right; padding: 10px 14px; border-right: 1.5px solid #111; border-bottom: 1.5px solid #111;">$ ${costPerMo.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
+          <td style="text-align: right; padding: 10px 14px; border-right: 1.5px solid #111; border-bottom: 1.5px solid #111;">$ ${pCost.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
+          <td style="text-align: right; font-weight: 700; padding: 10px 14px; border-bottom: 1.5px solid #111;">$ ${totalItem.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
+        </tr>
+      `;
+    }).join('');
+
+    tableHtml = `
+      <div style="font-size: 0.82rem; font-weight: 800; color: #666; text-transform: uppercase; letter-spacing: 0.5px; margin-top: 20px; margin-bottom: 8px;">
+        BILLBOARD COST BREAKDOWN BY MONTH
+      </div>
+      <table class="quotation-table" style="width: 100%; border-collapse: collapse; border: 2px solid #111;">
+        <thead>
+          <tr style="border-bottom: 2px solid #111; background: #fff;">
+            <th style="padding: 10px 14px; text-align: left; font-weight: 800; border-right: 1.5px solid #111;">Month</th>
+            <th style="padding: 10px 14px; text-align: right; font-weight: 800; border-right: 1.5px solid #111;">Billboard Cost / Mo</th>
+            <th style="padding: 10px 14px; text-align: right; font-weight: 800; border-right: 1.5px solid #111;">Printing Cost</th>
+            <th style="padding: 10px 14px; text-align: right; font-weight: 800;">Total w/ Printing</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${rowTrs}
+          <tr style="font-weight: 900; color: var(--primary-red); background: #fff;">
+            <td style="padding: 10px 14px; border-right: 1.5px solid #111;">TOTAL</td>
+            <td style="padding: 10px 14px; text-align: right; border-right: 1.5px solid #111;">$ ${totalWoPrint.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
+            <td style="padding: 10px 14px; text-align: right; border-right: 1.5px solid #111;">$ ${printCost.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
+            <td style="padding: 10px 14px; text-align: right;">$ ${totalWithPrint.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
+          </tr>
+        </tbody>
+      </table>
+    `;
+  }
 
   docContainer.innerHTML = `
     <div class="quotation-doc-header">
@@ -631,8 +1094,8 @@ function openQuotationModal(q) {
         <div style="font-size: 0.85rem; color: #666; margin-top: 4px;">North Lebanon | Outdoor Advertising</div>
       </div>
       <div style="text-align: right;">
-        <h2 style="font-size: 1.8rem; font-weight: 900; color: #111;">OFFICIAL QUOTATION</h2>
-        <div style="font-size: 0.95rem; font-weight: 700; color: var(--primary-red);">QUO-${q.id}</div>
+        <h2 style="font-size: 1.8rem; font-weight: 900; color: #111;">QUOTATION</h2>
+        <div style="font-size: 1rem; font-weight: 800; color: var(--primary-red);">QUO-${q.id}</div>
         <div style="font-size: 0.85rem; color: #666;">Date: ${dateStr}</div>
       </div>
     </div>
@@ -641,61 +1104,25 @@ function openQuotationModal(q) {
       <div>
         <div style="font-size: 0.8rem; font-weight: 800; color: #888; text-transform: uppercase;">PREPARED FOR CLIENT</div>
         <div style="font-size: 1.1rem; font-weight: 800; color: #111; margin-top: 2px;">${q.client_name || 'Valued Client'}</div>
-        <div style="font-size: 0.9rem; color: #555;">Client ID: ${q.client_id}</div>
+        <div style="font-size: 0.85rem; color: #555;">Client ID: ${q.client_id || 'N/A'}</div>
       </div>
       <div>
-        <div style="font-size: 0.8rem; font-weight: 800; color: #888; text-transform: uppercase;">CAMPAIGN REFERENCE</div>
-        <div style="font-size: 1.1rem; font-weight: 800; color: var(--primary-red); margin-top: 2px;">Billboard ${q.id}</div>
-        <div style="font-size: 0.9rem; color: #555;">Location: ${q.media_location}</div>
+        ${campaignRefHtml}
       </div>
     </div>
 
-    <table class="quotation-table">
-      <thead>
-        <tr>
-          <th>Item & Media Description</th>
-          <th>Frequency</th>
-          <th>Period</th>
-          <th style="text-align: right;">Amount (USD)</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr>
-          <td>
-            <strong>${q.media_type} (${q.reference})</strong><br/>
-            <span style="font-size: 0.85rem; color: #666;">Media Material: ${q.media_used}</span>
-          </td>
-          <td>${q.frequency || 1}</td>
-          <td>${q.period}</td>
-          <td style="text-align: right; font-weight: 800;">$ ${totalWoPrint.toLocaleString(undefined, {minimumFractionDigits: 2})}</td>
-        </tr>
-        <tr>
-          <td>
-            <strong>Printing & Production Cost</strong><br/>
-            <span style="font-size: 0.85rem; color: #666;">High resolution outdoor print & installation</span>
-          </td>
-          <td>${q.frequency || 1}</td>
-          <td>One-time</td>
-          <td style="text-align: right; font-weight: 800;">$ ${printCost.toLocaleString(undefined, {minimumFractionDigits: 2})}</td>
-        </tr>
-      </tbody>
-    </table>
+    <div style="margin-bottom: 20px;">
+      ${mediaDetailsHtml}
+    </div>
 
-    <div style="display: flex; justify-content: flex-end; margin-top: 20px;">
-      <div style="width: 320px; background: #F4F4F6; padding: 16px 20px; border-radius: 14px; border: 2px solid #111;">
-        <div style="display: flex; justify-content: space-between; margin-bottom: 8px; font-weight: 700; font-size: 0.95rem;">
-          <span>Subtotal w/o Printing:</span>
-          <span>$ ${totalWoPrint.toLocaleString(undefined, {minimumFractionDigits: 2})}</span>
-        </div>
-        <div style="display: flex; justify-content: space-between; margin-bottom: 8px; font-weight: 700; font-size: 0.95rem;">
-          <span>Printing & Mounting:</span>
-          <span>$ ${printCost.toLocaleString(undefined, {minimumFractionDigits: 2})}</span>
-        </div>
-        <div style="display: flex; justify-content: space-between; border-top: 2px solid #111; padding-top: 10px; font-weight: 900; font-size: 1.2rem; color: var(--primary-red);">
-          <span>Total Payable:</span>
-          <span>$ ${totalWithPrint.toLocaleString(undefined, {minimumFractionDigits: 2})}</span>
-        </div>
-      </div>
+    ${tableHtml}
+
+    <div style="margin-top: 14px; font-style: italic; font-size: 0.85rem; color: #444;">
+      Note: Subject to VAT
+    </div>
+
+    <div style="margin-top: 24px; border-top: 2px solid #111; padding-top: 10px; font-style: italic; font-size: 0.8rem; color: #888;">
+      adeffect | North Lebanon | Outdoor Advertising
     </div>
   `;
 
@@ -703,12 +1130,26 @@ function openQuotationModal(q) {
 }
 
 async function handleConvertToPDF() {
+  const btn = document.getElementById('btnConvertToPDF');
+  const originalHtml = btn ? btn.innerHTML : 'Convert to PDF';
+
   if (activeQuotationModalData) {
     try {
+      if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="animation: spin 1s linear infinite;"><circle cx="12" cy="12" r="10" stroke-opacity="0.3"></circle><path d="M12 2a10 10 0 0 1 10 10"></path></svg> Generating PDF...`;
+      }
       await downloadQuotationPdf(activeQuotationModalData);
+      showDashboardToast('Quotation PDF downloaded successfully!', 'success');
     } catch (err) {
       console.error("PDF generation error, falling back to print dialog:", err);
+      showDashboardToast('Opening print dialog for PDF...', 'success');
       window.print();
+    } finally {
+      if (btn) {
+        btn.disabled = false;
+        btn.innerHTML = originalHtml;
+      }
     }
   } else {
     window.print();
@@ -717,18 +1158,26 @@ async function handleConvertToPDF() {
 
 export async function downloadQuotationPdf(quotationData) {
   try {
-    const jsPDF = (typeof window !== "undefined" && window.jspdf && window.jspdf.jsPDF) || (typeof window !== "undefined" && window.jsPDF);
+    let jsPDF = (typeof window !== "undefined" && window.jspdf && window.jspdf.jsPDF) || (typeof window !== "undefined" && window.jsPDF);
+
+    // If jsPDF is not loaded yet, attempt to wait briefly or load via CDN
+    if (!jsPDF && typeof window !== "undefined") {
+      await new Promise(resolve => setTimeout(resolve, 300));
+      jsPDF = (window.jspdf && window.jspdf.jsPDF) || window.jsPDF;
+    }
+
     if (!jsPDF) {
       throw new Error("jsPDF library is not loaded.");
     }
 
     // ── Normalise data ──────────────────────────────────────────────────────
-    const isUnofficial = !!quotationData.is_unofficial;
-    const period = Array.isArray(quotationData.period)
+    const rawPeriod = Array.isArray(quotationData.period)
       ? quotationData.period
       : quotationData.period
         ? quotationData.period.split(",").map((s) => s.trim()).filter(Boolean)
         : [];
+
+    const period = rawPeriod.length > 0 ? rawPeriod : [String(quotationData.period || 'Campaign Period')];
 
     // Normalise printing_cost to array
     let printingCostList = [];
@@ -739,12 +1188,13 @@ export async function downloadQuotationPdf(quotationData) {
       typeof quotationData.printing_cost === "object"
     ) {
       printingCostList = [quotationData.printing_cost];
-    } else if (
-      typeof quotationData.printing_cost === "number" &&
-      quotationData.printing_cost > 0
-    ) {
-      // Legacy numeric value
-      printingCostList = [{ cost: quotationData.printing_cost, from_month: "", to_month: "" }];
+    } else {
+      const numCost = typeof quotationData.printing_cost === "number"
+        ? quotationData.printing_cost
+        : parseFloat(String(quotationData.printing_cost || '').replace(/[^0-9.]/g, '')) || 0;
+      if (numCost > 0) {
+        printingCostList = [{ cost: numCost, from_month: "", to_month: "" }];
+      }
     }
 
     const totalWo = parseFloat(quotationData.total_cost_wo_printing) || 0;
@@ -764,18 +1214,17 @@ export async function downloadQuotationPdf(quotationData) {
       };
     });
 
+    // Check if multi-billboard or package
+    const items = quotationData.billboards || quotationData.requested_booking_items || quotationData.items || [];
+    const isMultiBillboard = items.length > 1 || 
+      (Array.isArray(quotationData.billboard_id) && quotationData.billboard_id.length > 1) ||
+      (typeof quotationData.reference === 'string' && (quotationData.reference.toLowerCase().includes('multiple') || quotationData.reference.includes(','))) ||
+      quotationData.campaign_reference === 'Multiple Billboard Sites';
+
     // ── Document setup ──────────────────────────────────────────────────────
     const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
     const pageH = doc.internal.pageSize.getHeight();
     let curY = 18;
-
-    // Helper: check if we need a new page
-    const ensureSpace = (needed) => {
-      if (curY + needed > pageH - 14) {
-        doc.addPage();
-        curY = 14;
-      }
-    };
 
     // ── HEADER ──────────────────────────────────────────────────────────────
     doc.setFont("helvetica", "bold");
@@ -797,32 +1246,25 @@ export async function downloadQuotationPdf(quotationData) {
     doc.text("North Lebanon | Outdoor", INNER_LEFT, curY + 11);
     doc.text("Advertising", INNER_LEFT, curY + 15);
 
-    // Right: title
+    // Right: title (QUOTATION)
     doc.setFont("helvetica", "bold");
     doc.setFontSize(18);
     setColor(doc, BLACK);
-    if (isUnofficial) {
-      doc.text("QUOTATION", INNER_RIGHT, curY + 3, { align: "right" });
-    } else {
-      doc.text("OFFICIAL", INNER_RIGHT, curY - 1, { align: "right" });
-      doc.text("QUOTATION", INNER_RIGHT, curY + 6, { align: "right" });
-    }
+    doc.text("QUOTATION", INNER_RIGHT, curY + 3, { align: "right" });
 
     const quoRef = quotationData.id
       ? `QUO-${quotationData.id}`
       : `QUO-${quotationData.booking_id || Date.now()}`;
-    doc.setFontSize(10.5);
+    doc.setFontSize(11);
     setColor(doc, RED);
-    doc.text(quoRef, INNER_RIGHT, curY + 12, { align: "right" });
+    doc.text(quoRef, INNER_RIGHT, curY + 11, { align: "right" });
 
     doc.setFont("helvetica", "normal");
-    doc.setFontSize(9.5);
+    doc.setFontSize(9);
     setColor(doc, [100, 100, 100]);
-    doc.text(`Date: ${formatDate(quotationData.created_at)}`, INNER_RIGHT, curY + 17, { align: "right" });
+    doc.text(`Date: ${formatDate(quotationData.created_at)}`, INNER_RIGHT, curY + 16, { align: "right" });
 
     curY += 24;
-    hRule(doc, curY, 0.8);
-    curY += 8;
 
     // ── CLIENT & CAMPAIGN INFO BOX ──────────────────────────────────────────
     const infoBoxW = CONTENT_W; // 174mm
@@ -861,22 +1303,27 @@ export async function downloadQuotationPdf(quotationData) {
 
     doc.setFontSize(10.5);
     setColor(doc, RED);
-    doc.text(
-      quotationData.reference ? `Billboard ${quotationData.id}` : "Billboard Ref",
-      rightColX,
-      infoY + 5,
-      { maxWidth: colMaxW }
-    );
 
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(8);
-    setColor(doc, [120, 120, 120]);
-    doc.text(
-      quotationData.media_location ? `Location: ${quotationData.media_location}` : "Location: N/A",
-      rightColX,
-      infoY + 10,
-      { maxWidth: colMaxW }
-    );
+    const durationText = quotationData.duration || (period.length > 0 ? `${period.length} month` : '2 month');
+
+    if (isMultiBillboard) {
+      doc.text("Multiple Billboard Sites", rightColX, infoY + 5, { maxWidth: colMaxW });
+
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(8);
+      setColor(doc, [120, 120, 120]);
+      doc.text(`Pricing: ${durationText}`, rightColX, infoY + 10, { maxWidth: colMaxW });
+    } else {
+      let cleanRef = String(quotationData.reference || quotationData.billboard_id || quotationData.id || 'Site').trim();
+      cleanRef = cleanRef.replace(/^Billboard\s+/i, '');
+      doc.text(`Billboard ${cleanRef}`, rightColX, infoY + 5, { maxWidth: colMaxW });
+
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(8);
+      setColor(doc, [120, 120, 120]);
+      const locText = quotationData.media_location || quotationData.location || "Tripoli Highway Main Entrance";
+      doc.text(`Location: ${locText}`, rightColX, infoY + 10, { maxWidth: colMaxW });
+    }
 
     curY += infoBoxH + 8;
 
@@ -890,92 +1337,110 @@ export async function downloadQuotationPdf(quotationData) {
     doc.setFont("helvetica", "normal");
     doc.setFontSize(8.5);
     setColor(doc, BLACK);
-    const mediaLine = [
-      quotationData.media_type ? `Type: ${quotationData.media_type}` : null,
-      quotationData.media_used ? `Used: ${quotationData.media_used}` : null,
-      quotationData.frequency != null ? `Frequency: ${quotationData.frequency}` : null,
-    ]
-      .filter(Boolean)
-      .join("    |    ");
-    doc.text(mediaLine || "N/A", INNER_LEFT, curY, { maxWidth: CONTENT_W });
-    curY += 10;
 
-    // ── SECTION 1: PER-MONTH BILLBOARD COST BREAKDOWN ───────────────────────
-    ensureSpace(14 + (period.length + 1) * 9 + 10);
+    if (isMultiBillboard) {
+      doc.text(`Type: outdoor    |    Used: billboard    |    Duration: ${durationText}`, INNER_LEFT, curY);
+      curY += 10;
+    } else {
+      doc.text(`Type: outdoor    |    Frequency: 1`, INNER_LEFT, curY);
+      curY += 8;
 
-    curY = sectionHeading(doc, "Billboard Cost Breakdown by Month", curY);
+      // Section subtitle for single billboard
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(8);
+      setColor(doc, [120, 120, 120]);
+      doc.text("BILLBOARD COST BREAKDOWN BY MONTH", INNER_LEFT, curY);
+      curY += 5;
+    }
 
-    // colWidths sum = 42 + 44 + 44 + 44 = 174mm (matches CONTENT_W exactly)
-    const bbColWidths = [42, 44, 44, 44];
-    const bbHeaders = ["Month", "Billboard Cost / Mo", "Printing Cost", "Total w/ Printing"];
-    const bbAligns = ["left", "right", "right", "right"];
+    // ── TABLE RENDERING ─────────────────────────────────────────────────────
+    if (isMultiBillboard) {
+      const bbColWidths = [54, 40, 40, 40];
+      const bbHeaders = ["Billboard Reference", "Billboard Cost / Mo", "Printing Cost", "Total w/ Printing"];
+      const bbAligns = ["left", "right", "right", "right"];
 
-    const bbRows = monthRows.map((r) => [
-      r.month,
-      `$ ${formatMoney(r.billboardCost)}`,
-      r.printingCost > 0 ? `$ ${formatMoney(r.printingCost)}` : "$ 0.00",
-      `$ ${formatMoney(r.totalWithPrinting)}`,
-    ]);
+      let multiRows = items;
+      if (!multiRows || multiRows.length === 0) {
+        let bIds = quotationData.billboard_id;
+        if (typeof bIds === 'string') {
+          try { bIds = JSON.parse(bIds); } catch(e) { bIds = bIds.split(',').map(s => s.trim()); }
+        }
+        if (Array.isArray(bIds)) {
+          multiRows = bIds.map(id => ({ billboard_id: id }));
+        }
+      }
 
-    // Totals row
-    bbRows.push([
-      "TOTAL",
-      `$ ${formatMoney(totalWo)}`,
-      totalPrinting > 0 ? `$ ${formatMoney(totalPrinting)}` : "$ 0.00",
-      `$ ${formatMoney(grandTotal)}`,
-    ]);
+      const durMonths = Math.max(1, period.length || parseInt(durationText) || 1);
+      let sumCostMo = 0;
+      let sumPrint = 0;
+      let sumTotal = 0;
 
-    curY = drawTable(
-      doc,
-      INNER_LEFT,
-      curY,
-      bbColWidths,
-      bbHeaders,
-      bbRows,
-      bbAligns,
-      bbAligns,
-      true // last row bold
-    );
+      const bbRows = (multiRows.length > 0 ? multiRows : [{ billboard_id: quotationData.reference || 'Site A' }]).map(item => {
+        const bRef = item.billboard_id || item.reference || 'Billboard';
+        const costMo = Number(item.billboard_cost || item.price_at_the_time_of_booking || item.price || item.numericPrice || (totalWo / Math.max(1, multiRows.length * durMonths))) || 0;
+        const pCost = Number(item.printing_cost != null ? item.printing_cost : (totalPrinting / Math.max(1, multiRows.length))) || 0;
+        const totalItem = (costMo * durMonths) + pCost;
+        sumCostMo += costMo;
+        sumPrint += pCost;
+        sumTotal += totalItem;
 
-    curY += 10;
+        return [
+          bRef,
+          `$ ${formatMoney(costMo)}`,
+          `$ ${formatMoney(pCost)}`,
+          `$ ${formatMoney(totalItem)}`
+        ];
+      });
 
+      // Totals row (RED)
+      bbRows.push([
+        "TOTAL",
+        `$ ${formatMoney(sumCostMo || totalWo)}`,
+        `$ ${formatMoney(sumPrint || totalPrinting)}`,
+        `$ ${formatMoney(sumTotal || grandTotal)}`
+      ]);
+
+      curY = drawTable(doc, INNER_LEFT, curY, bbColWidths, bbHeaders, bbRows, bbAligns, bbAligns, true, RED);
+
+    } else {
+      const bbColWidths = [42, 44, 44, 44];
+      const bbHeaders = ["Month", "Billboard Cost / Mo", "Printing Cost", "Total w/ Printing"];
+      const bbAligns = ["left", "right", "right", "right"];
+
+      const bbRows = monthRows.map((r) => [
+        r.month,
+        `$ ${formatMoney(r.billboardCost)}`,
+        `$ ${formatMoney(r.printingCost)}`,
+        `$ ${formatMoney(r.totalWithPrinting)}`,
+      ]);
+
+      // Totals row (RED)
+      bbRows.push([
+        "TOTAL",
+        `$ ${formatMoney(totalWo)}`,
+        `$ ${formatMoney(totalPrinting)}`,
+        `$ ${formatMoney(grandTotal)}`,
+      ]);
+
+      curY = drawTable(doc, INNER_LEFT, curY, bbColWidths, bbHeaders, bbRows, bbAligns, bbAligns, true, RED);
+    }
+
+    curY += 8;
     doc.setFont("helvetica", "italic");
     doc.setFontSize(8);
     setColor(doc, BLACK);
-    //doc.text(
-      //"This quotation is valid for 30 days from the date of issue. All amounts are in USD.",
-      //INNER_LEFT,
-      //curY
-    //);
-    curY += 4;
-    doc.text(
-      "Note: Subject to VAT",
-      INNER_LEFT,
-      curY
-    );
+    doc.text("Note: Subject to VAT", INNER_LEFT, curY);
 
-    curY += 10;
-
-    // ── FOOTER NOTE ─────────────────────────────────────────────────────────
-    ensureSpace(18);
-    hRule(doc, curY, 0.5);
-    curY += 5;
+    // Footer at bottom of page
+    const footerLineY = pageH - 22;
+    setDraw(doc, BLACK);
+    doc.setLineWidth(0.8);
+    doc.line(INNER_LEFT, footerLineY, INNER_RIGHT, footerLineY);
 
     doc.setFont("helvetica", "italic");
     doc.setFontSize(7.5);
-    setColor(doc, [160, 160, 160]);
-    //doc.text(
-      //"This quotation is valid for 30 days from the date of issue. All amounts are in USD.",
-      //INNER_LEFT,
-      //curY
-    //);
-    curY += 4;
-    doc.text(
-      "adeffect | North Lebanon | Outdoor Advertising",
-      INNER_LEFT,
-      curY
-    );
-
+    setColor(doc, [140, 140, 140]);
+    doc.text("adeffect | North Lebanon | Outdoor Advertising", INNER_LEFT, footerLineY + 6);
 
     // ── Save & export ───────────────────────────────────────────────────────
     const fileName = `quotation_${quotationData.booking_id || quotationData.id || Date.now()}.pdf`;

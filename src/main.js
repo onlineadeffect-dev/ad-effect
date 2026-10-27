@@ -86,9 +86,13 @@ document.addEventListener('DOMContentLoaded', () => {
     history.scrollRestoration = 'manual';
   }
 
-  // Initial page view check based on URL hash
+  // Initial page view check based on URL pathname or hash
+  const path = (window.location.pathname || '').replace(/\/+$/, '');
   const initialHash = window.location.hash ? window.location.hash.replace('#', '') : 'home';
-  if (initialHash && ['discoverySection', 'authSection', 'dashboardSection'].includes(initialHash)) {
+  if (path.endsWith('forgot-password') || initialHash === 'forgot-password') {
+    showPage('authSection');
+    if (window.toggleAuthMode) window.toggleAuthMode('reset');
+  } else if (initialHash && ['discoverySection', 'authSection', 'dashboardSection', 'careers'].includes(initialHash)) {
     showPage(initialHash);
   } else {
     window.scrollTo(0, 0);
@@ -97,8 +101,25 @@ document.addEventListener('DOMContentLoaded', () => {
   // Listen to browser hash change event
   window.addEventListener('hashchange', () => {
     const hash = window.location.hash ? window.location.hash.replace('#', '') : 'home';
-    if (hash) {
+    if (hash === 'forgot-password') {
+      showPage('authSection');
+      if (window.toggleAuthMode) window.toggleAuthMode('reset');
+    } else if (hash) {
       showPage(hash);
+    }
+  });
+
+  // Listen to browser popstate (back/forward history navigation)
+  window.addEventListener('popstate', () => {
+    const curPath = (window.location.pathname || '').replace(/\/+$/, '');
+    const curHash = window.location.hash ? window.location.hash.replace('#', '') : '';
+    if (curPath.endsWith('forgot-password') || curHash === 'forgot-password') {
+      showPage('authSection');
+      if (window.toggleAuthMode) window.toggleAuthMode('reset');
+    } else if (curHash && ['discoverySection', 'authSection', 'dashboardSection', 'careers'].includes(curHash)) {
+      showPage(curHash);
+    } else if (!curHash && (curPath === '' || curPath === '/')) {
+      showPage('home');
     }
   });
 });

@@ -10,8 +10,79 @@ export function initHomeAnimation() {
   const brandAssembly = document.getElementById('brandAssembly');
   const billboardsStage = document.getElementById('billboardsStage');
   const ctaButtons = document.getElementById('ctaButtons');
+  const homeCategoryPills = document.getElementById('homeCategoryPills');
+  const floatingChips = document.querySelectorAll('.floating-chip');
   const heroAnimationStage = document.getElementById('heroAnimationStage');
   const replayBtn = document.getElementById('replayBtn');
+
+  // Center billboard dynamic messages
+  const centerScreenBadge = document.getElementById('centerScreenBadge');
+  const centerScreenTitle = document.getElementById('centerScreenTitle');
+  const centerScreenSubtitle = document.getElementById('centerScreenSubtitle');
+  const centerScreenInner = document.querySelector('.center-screen-inner');
+
+  const billboardMessages = [
+    {
+      badge: 'AD EFFECT • LIVE',
+      title: 'LEADING OUTDOOR MEDIA',
+      subtitle: "NORTH LEBANON'S #1 NETWORK"
+    },
+    {
+      badge: 'PRIME LOCATIONS',
+      title: 'HIGHWAY & CITY EXPOSURE',
+      subtitle: 'TRIPOLI • CHEKKA • HIGHWAYS'
+    },
+    {
+      badge: 'HIGH TRAFFIC IMPACT',
+      title: '50,000+ DAILY IMPRESSIONS',
+      subtitle: 'MAXIMUM BRAND VISIBILITY & RETENTION'
+    },
+    {
+      badge: '25+ YEARS EXCELLENCE',
+      title: 'CONNECTING MEDIA SINCE 1999',
+      subtitle: 'UNIPOLES • MEGAPOLES • WALLBANNERS'
+    }
+  ];
+
+  let currentMsgIndex = 0;
+  let billboardMessageInterval = null;
+
+  function rotateBillboardMessage() {
+    if (!centerScreenInner || !centerScreenTitle) return;
+    centerScreenInner.classList.add('fading');
+    setTimeout(() => {
+      currentMsgIndex = (currentMsgIndex + 1) % billboardMessages.length;
+      const msg = billboardMessages[currentMsgIndex];
+      if (centerScreenBadge) centerScreenBadge.textContent = msg.badge;
+      if (centerScreenTitle) centerScreenTitle.textContent = msg.title;
+      if (centerScreenSubtitle) centerScreenSubtitle.textContent = msg.subtitle;
+      centerScreenInner.classList.remove('fading');
+    }, 350);
+  }
+
+  function startBillboardRotation() {
+    stopBillboardRotation();
+    billboardMessageInterval = setInterval(rotateBillboardMessage, 3600);
+  }
+
+  function stopBillboardRotation() {
+    if (billboardMessageInterval) {
+      clearInterval(billboardMessageInterval);
+      billboardMessageInterval = null;
+    }
+  }
+
+  // Expose category quick jump helper
+  window.filterDiscoveryCategory = function(cat) {
+    if (typeof window.showPage === 'function') {
+      window.showPage('discoverySection');
+    }
+    const searchInput = document.getElementById('discoverySearchInput');
+    if (searchInput) {
+      searchInput.value = cat;
+      searchInput.dispatchEvent(new Event('input', { bubbles: true }));
+    }
+  };
 
   // Slider Elements
   const slides = document.querySelectorAll('.hero-slide');
@@ -63,7 +134,10 @@ export function initHomeAnimation() {
     brandAssembly?.classList.remove('shifted-up');
     billboardsStage?.classList.remove('show');
     ctaButtons?.classList.remove('show');
+    homeCategoryPills?.classList.remove('show');
+    floatingChips.forEach(c => c.classList.remove('show'));
     heroAnimationStage?.classList.remove('show');
+    stopBillboardRotation();
 
     dots.forEach(d => {
       d.classList.remove('pop-1', 'pop-2', 'pop-3');
@@ -90,7 +164,10 @@ export function initHomeAnimation() {
       brandAssembly?.classList.add('shifted-up');
       billboardsStage?.classList.add('show');
       ctaButtons?.classList.add('show');
+      homeCategoryPills?.classList.add('show');
+      floatingChips.forEach(c => c.classList.add('show'));
       heroAnimationStage?.classList.add('show');
+      startBillboardRotation();
       startSlideLoop();
     }, 1450);
   }

@@ -4,7 +4,7 @@ import { getSupabase } from './supabaseClient.js';
 let currentUser = null;
 
 export function getCurrentUser() {
-  if (!currentUser) {
+  if (!currentUser && typeof localStorage !== 'undefined') {
     const saved = localStorage.getItem('adeffect_auth_user');
     if (saved) {
       try { currentUser = JSON.parse(saved); } catch (e) {}
@@ -15,16 +15,29 @@ export function getCurrentUser() {
 
 export function setCurrentUser(user) {
   currentUser = user;
-  if (user) {
-    localStorage.setItem('adeffect_auth_user', JSON.stringify(user));
-  } else {
-    localStorage.removeItem('adeffect_auth_user');
+  if (typeof localStorage !== 'undefined') {
+    if (user) {
+      localStorage.setItem('adeffect_auth_user', JSON.stringify(user));
+    } else {
+      localStorage.removeItem('adeffect_auth_user');
+    }
   }
-  window.dispatchEvent(new CustomEvent('authChange', { detail: { user } }));
+  if (typeof window !== 'undefined' && window.dispatchEvent) {
+    window.dispatchEvent(new CustomEvent('authChange', { detail: { user } }));
+  }
+}
+
+export function isForgotPasswordUrl() {
+  if (typeof window === 'undefined') return false;
+  const path = (window.location.pathname || '').replace(/\/+$/, '');
+  const hash = (window.location.hash || '').replace('#', '');
+  return path.endsWith('forgot-password') || hash === 'forgot-password';
 }
 
 export function initAuth() {
   window.handleDashboardNavigation = handleDashboardNavigation;
+  window.toggleAuthMode = toggleAuthMode;
+  window.handleForgotPassword = handleForgotPassword;
 
   const dashboardBtns = document.querySelectorAll('#btnGoToDashboard, #btnNavDashboard, .btn-nav-dashboard, .btn-explore');
   const btnForgotPassword = document.getElementById('btnForgotPassword');
@@ -41,6 +54,9 @@ export function initAuth() {
     btnSwitchToSignInFromReset.addEventListener('click', (e) => {
       e.preventDefault();
       toggleAuthMode('signin');
+      if (window.history && window.history.pushState && (window.location.pathname || '').endsWith('forgot-password')) {
+        window.history.pushState({ page: 'authSection' }, '', '/#authSection');
+      }
     });
   }
 
@@ -86,24 +102,36 @@ export function initAuth() {
     });
   }
 
-  // Handle password reset redirect or hash from link if navigated to directly
+  // Handle password reset redirect or URL ending with forgot-password
   const urlParams = new URLSearchParams(window.location.search);
-  if (urlParams.get('reset') === 'true' || window.location.hash.includes('access_token')) {
+  const isForgot = isForgotPasswordUrl();
+
+  if (isForgot || urlParams.get('reset') === 'true' || window.location.hash.includes('access_token')) {
     showPage('authSection');
     toggleAuthMode('reset');
+  } else {
+    // Initial routing setup on page load
+    showPage('home');
   }
-
-  // Initial routing setup on page load
-  showPage('home');
 }
 
-function handleForgotPassword() {
+export function handleForgotPassword() {
   const email = document.getElementById('signinEmail')?.value.trim();
   showPage('authSection');
   toggleAuthMode('reset');
   if (email) {
     const resetEmailField = document.getElementById('resetEmail');
     if (resetEmailField) resetEmailField.value = email;
+  }
+  // Ensure the browser reference URL ends with forgot-password
+  try {
+    if (window.history && window.history.pushState) {
+      window.history.pushState({ page: 'forgot-password' }, '', '/forgot-password');
+    } else {
+      window.location.hash = 'forgot-password';
+    }
+  } catch (e) {
+    window.location.hash = 'forgot-password';
   }
 }
 

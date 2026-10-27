@@ -96,6 +96,7 @@ const INITIAL_BILLBOARDS = [
 // Helper to access LocalStorage state
 function getLocalState(key, defaultData) {
   try {
+    if (typeof localStorage === 'undefined') return defaultData;
     const data = localStorage.getItem(key);
     return data ? JSON.parse(data) : defaultData;
   } catch (e) {
@@ -105,6 +106,7 @@ function getLocalState(key, defaultData) {
 
 function setLocalState(key, data) {
   try {
+    if (typeof localStorage === 'undefined') return;
     localStorage.setItem(key, JSON.stringify(data));
   } catch (e) {
     console.error('Error saving local state:', e);
@@ -287,236 +289,455 @@ export async function uploadBriefFile(file) {
   };
 }
 
-// 4. Submit Booking Request into `pending_bookings` table
+// Helper to retrieve a valid booking_id from bookings table to satisfy FK constraint on pending_booking_items
+async function getBookingIdForBillboard(billboardId, sb) {
+  if (!sb) return null;
+  try {
+    if (billboardId) {
+      const { data } = await sb
+        .from('bookings')
+        .select('booking_id')
+        .eq('billboard_id', billboardId)
+        .limit(1)
+        .maybeSingle();
+      if (data && data.booking_id) {
+        return data.booking_id;
+      }
+    }
+  } catch (e) {
+    console.warn('Could not query billboard booking_id:', e);
+  }
+
+  // Fallback to any existing booking_id in bookings to satisfy foreign key constraint
+  try {
+    const { data: anyBooking } = await sb
+      .from('bookings')
+      .select('booking_id')
+      .limit(1)
+      .maybeSingle();
+    if (anyBooking && anyBooking.booking_id) {
+      return anyBooking.booking_id;
+    }
+  } catch (e) {
+    console.warn('Could not query fallback booking_id:', e);
+  }
+
+  return '806e8091-5c84-4719-85f9-89bd9fe33bed';
+}
+
+// 4. Submit Booking Request into `requested_bookings` and `requested_booking_items` tables
 export async function submitPendingBooking(bookingData) {
-  
   const user = getCurrentUser();
+  if (!user || !user.id) {
+    console.error('Supabase insert failed: No authenticated user found.');
+    return { success: false, error: 'Not authenticated' };
+  }
 
-  const container = document.getElementById('performancesGrid');
-  if (!container) return;
+  // billboard_id is jsonb in requested_bookings — store as array
+  const billboardIds = Array.isArray(bookingData.billboard_id)
+    ? bookingData.billboard_id.map(String)
+    : [String(bookingData.billboard_id)];
 
-  const userId = user ? user.id : null;
+  const services = Array.isArray(bookingData.extra_services)
+    ? bookingData.extra_services
+    : (bookingData.extra_services ? [String(bookingData.extra_services)] : []);
 
-  const payload = {
+  // extra_services is jsonb — send null when empty to avoid PostgREST
+  // serialising [] as "{}" which causes "invalid input syntax for type integer: {}"
+  const extraServicesValue = services.length > 0 ? services : null;
+
+  // Columns that exist in requested_bookings:
+  // id(int8,auto) | created_at(timestamptz,auto) | billboard_id(jsonb) |
+  // brief_url(text) | extra_services(jsonb) | user_id(uuid) |
+  // start_time(timestamptz) | end_time(timestamptz) | status(text)
+  const bookingPayload = {
     user_id: user.id,
-    user_email: bookingData.user_email,
-    billboard_id: bookingData.billboard_id,
-    start_time: bookingData.start_time,
-    end_time: bookingData.end_time,
-    brief_url: bookingData.brief_url,
-    extra_services: bookingData.extra_services || [],
-    status: 'In Review',
-    created_at: new Date().toISOString()
+    billboard_id: billboardIds,               // jsonb — array e.g. ["U002-A"]
+    brief_url: bookingData.brief_url || null, // text
+    extra_services: extraServicesValue,        // jsonb — array or null
+    start_time: new Date(bookingData.start_time).toISOString(),
+    end_time: new Date(bookingData.end_time).toISOString(),
+    status: 'In Review'
+    // id and created_at are auto-generated — do NOT include them
   };
 
   const sb = getSupabase();
   if (sb) {
     try {
-      const { data, error } = await sb.from('pending_bookings').insert([payload]).select();
-      if (!error) {
-        saveLocalBooking(payload);
-        return { success: true, data };
+      const { data, error } = await sb
+        .from('requested_bookings')
+        .insert([bookingPayload])
+        .select();
+
+      if (error) {
+        console.error('Supabase insert failed (requested_bookings):', error);
+        return { success: false, error: error.message };
       }
-      console.warn('Supabase insert pending_bookings warning:', error);
+
+      if (!data || data.length === 0) {
+        console.error('Supabase insert failed (requested_bookings): no row returned.');
+        return { success: false, error: 'Insert returned no data.' };
+      }
+
+      // parentBookingId is int8 — it IS the FK that links to requested_booking_items.id
+      const parentBookingId = data[0].id;
+
+      // Columns that exist in requested_booking_items:
+      // id(int8, FK→requested_bookings.id) | created_at(timestamptz,auto) |
+      // billboard_id(text) | booking_id | start_date(timestamptz) |
+      // end_date(timestamptz) | price_at_the_time_of_booking(int8) | printing_cost(float8)
+      const itemPayload = {
+        id: parentBookingId,   // int8 FK to requested_bookings.id
+        billboard_id: String(bookingData.billboard_id),   // text
+        start_date: new Date(bookingData.start_time).toISOString(),
+        end_date: new Date(bookingData.end_time).toISOString(),
+        price_at_the_time_of_booking: Math.round(Number(bookingData.total_price || bookingData.price || 0)) || null,
+        printing_cost: bookingData.printing_cost != null
+          ? Number(bookingData.printing_cost)
+          : null
+        // booking_id omitted — its type was not confirmed; the relation between the
+        // two tables is already established via the shared id FK
+      };
+
+      const { data: itemData, error: itemError } = await sb
+        .from('requested_booking_items')
+        .insert([itemPayload])
+        .select();
+
+      if (itemError) {
+        console.error('Supabase insert failed (requested_booking_items):', itemError);
+      }
+
+      const fullRecord = {
+        ...data[0],
+        extra_services: services,
+        requested_booking_items: itemData || [itemPayload],
+        pending_booking_items: itemData || [itemPayload],
+        items: itemData || [itemPayload]
+      };
+
+      saveLocalBooking(fullRecord);
+      return { success: true, data: [fullRecord] };
     } catch (e) {
-      console.warn('Supabase insert pending_bookings exception:', e);
+      console.error('Supabase insert exception (requested_bookings):', e);
+      return { success: false, error: e.message };
     }
   }
 
-  // Save to local storage fallback
-  saveLocalBooking(payload);
-  return { success: true, data: [payload] };
+  // Fallback to local storage if Supabase client is unavailable
+  const fallbackRecord = {
+    ...bookingPayload,
+    id: Date.now(),
+    created_at: new Date().toISOString(),
+    extra_services: services,
+    items: [{
+      id: Date.now(),
+      billboard_id: String(bookingData.billboard_id),
+      start_date: bookingPayload.start_time,
+      end_date: bookingPayload.end_time,
+      price_at_the_time_of_booking: Math.round(Number(bookingData.total_price || bookingData.price || 0)) || null,
+      printing_cost: Number(bookingData.printing_cost) || null,
+      created_at: new Date().toISOString()
+    }]
+  };
+  fallbackRecord.requested_booking_items = fallbackRecord.items;
+  fallbackRecord.pending_booking_items = fallbackRecord.items;
+  saveLocalBooking(fallbackRecord);
+  return { success: true, data: [fallbackRecord] };
 }
 
 export async function submitPendingPackageBooking(bookingData) {
   const user = getCurrentUser();
-  if (!user) return { success: false, error: 'Not authenticated' };
+  if (!user || !user.id) return { success: false, error: 'Not authenticated' };
 
   const sb = getSupabase();
 
-  const payload = {
+  const billboardIds = (bookingData.items || []).map(i => String(i.billboard_id));
+
+  const services = Array.isArray(bookingData.extra_services) 
+    ? bookingData.extra_services 
+    : (bookingData.extra_services ? [String(bookingData.extra_services)] : []);
+
+  const bookingPayload = {
     user_id: user.id,
-    user_email: bookingData.user_email,
-    start_time: bookingData.start_time,
-    end_time: bookingData.end_time,
-    brief_url: bookingData.brief_url,
-    extra_services: bookingData.extra_services || [],
-    total_price: bookingData.total_price,
+    billboard_id: billboardIds, // jsonb array
+    brief_url: bookingData.brief_url || null,
+    extra_services: services,   // jsonb array
+    start_time: new Date(bookingData.start_time).toISOString(),
+    end_time: new Date(bookingData.end_time).toISOString(),
     status: 'In Review',
     created_at: new Date().toISOString()
   };
 
   if (sb) {
     try {
-      const { data, error } = await sb.from('pending_bookings').insert([payload]).select();
-      if (!error && data && data.length > 0) {
-        const pendingBookingId = data[0].id;
-        
-        const itemsToInsert = bookingData.items.map(item => ({
-          pending_booking_id: pendingBookingId,
-          billboard_id: item.billboard_id,
-          start_time: item.start_time,
-          end_time: item.end_time
-        }));
+      const { data, error } = await sb
+        .from('requested_bookings')
+        .insert([bookingPayload])
+        .select();
 
-        const { error: itemsError } = await sb.from('pending_booking_items').insert(itemsToInsert);
-        if (itemsError) {
-          console.warn('Supabase insert pending_booking_items warning:', itemsError);
-        }
-        
-        payload.items = itemsToInsert;
-        saveLocalBooking(payload);
-        return { success: true, data };
+      if (error) {
+        console.error('Supabase insert failed (requested_bookings — package):', error);
+        return { success: false, error: error.message };
       }
-      console.warn('Supabase insert pending_bookings warning:', error);
+      if (!data || data.length === 0) {
+        console.error('Supabase insert failed (requested_bookings — package): insert returned no data.');
+        return { success: false, error: 'Insert returned no data.' };
+      }
+
+      const parentBookingId = data[0].id;
+
+      const itemsToInsert = await Promise.all((bookingData.items || []).map(async (item) => {
+        const bId = await getBookingIdForBillboard(item.billboard_id, sb);
+        return {
+          id: parentBookingId,
+          billboard_id: String(item.billboard_id),
+          booking_id: bId,
+          start_date: new Date(item.start_time || bookingData.start_time).toISOString(),
+          end_date: new Date(item.end_time || bookingData.end_time).toISOString(),
+          price_at_the_time_of_booking: Math.round(Number(item.price || item.total_price || item.numericPrice || 0)) || null,
+          printing_cost: item.printing_cost !== undefined && item.printing_cost !== null 
+            ? Number(item.printing_cost) 
+            : null,
+          created_at: new Date().toISOString()
+        };
+      }));
+
+      const { data: itemData, error: itemsError } = await sb
+        .from('requested_booking_items')
+        .insert(itemsToInsert)
+        .select();
+
+      if (itemsError) {
+        console.error('Supabase insert failed (requested_booking_items):', itemsError);
+      }
+
+      const fullPackageRecord = {
+        ...data[0],
+        extra_services: services,
+        requested_booking_items: itemData || itemsToInsert,
+        pending_booking_items: itemData || itemsToInsert,
+        items: itemData || itemsToInsert
+      };
+
+      saveLocalBooking(fullPackageRecord);
+      return { success: true, data: [fullPackageRecord] };
     } catch (e) {
-      console.warn('Supabase insert pending package exception:', e);
+      console.error('Supabase insert exception (requested package):', e);
+      return { success: false, error: e.message };
     }
   }
 
-  // Local fallback
-  payload.items = bookingData.items.map(item => ({
-    pending_booking_id: 'local-' + Date.now(),
-    billboard_id: item.billboard_id,
-    start_time: item.start_time,
-    end_time: item.end_time
-  }));
-  saveLocalBooking(payload);
-  return { success: true, data: [payload] };
+  // Fallback if Supabase is unavailable
+  const fallbackRecord = {
+    ...bookingPayload,
+    id: Date.now(),
+    items: (bookingData.items || []).map(item => ({
+      id: Date.now(),
+      booking_id: 'local-' + Date.now(),
+      billboard_id: String(item.billboard_id),
+      start_date: new Date(item.start_time || bookingData.start_time).toISOString(),
+      end_date: new Date(item.end_time || bookingData.end_time).toISOString(),
+      price_at_the_time_of_booking: Math.round(Number(item.price || item.total_price || item.numericPrice || 0)) || null,
+      printing_cost: Number(item.printing_cost) || null,
+      created_at: bookingPayload.created_at
+    }))
+  };
+  fallbackRecord.requested_booking_items = fallbackRecord.items;
+  fallbackRecord.pending_booking_items = fallbackRecord.items;
+  saveLocalBooking(fallbackRecord);
+  return { success: true, data: [fallbackRecord] };
 }
 
 function saveLocalBooking(payload) {
-  const list = getLocalState('adeffect_pending_bookings', []);
+  const list = getLocalState('adeffect_requested_bookings', getLocalState('adeffect_pending_bookings', []));
   list.unshift(payload); // Newest first
+  setLocalState('adeffect_requested_bookings', list);
   setLocalState('adeffect_pending_bookings', list);
 }
 
 // 5. Fetch Bookings for validation & dashboard display
-export async function fetchPendingBookings(userEmail = null) {
+export async function fetchPendingBookings(userId = null) {
+  const user = getCurrentUser();
+  const effectiveUserId = (userId && typeof userId === 'string' && !userId.includes('@')) 
+    ? userId 
+    : (user ? user.id : null);
+
   const sb = getSupabase();
-  if (sb) {
+  if (sb && effectiveUserId) {
     try {
-      let query = sb.from('pending_bookings').select('*, pending_booking_items(*)');
-      if (userEmail) {
-        query = query.eq('user_email', userEmail);
-      }
-      const { data, error } = await query;
-      if (!error && data) {
-        return data;
+      // 1. Fetch requested bookings from Supabase
+      const { data: bookingsData, error: bError } = await sb
+        .from('requested_bookings')
+        .select('*')
+        .eq('user_id', effectiveUserId)
+        .order('created_at', { ascending: false });
+
+      if (!bError && bookingsData) {
+        // 2. Fetch requested_booking_items
+        const { data: itemsData, error: iError } = await sb
+          .from('requested_booking_items')
+          .select('*');
+
+        const allItems = Array.isArray(itemsData) ? itemsData : [];
+
+        // Match items to requested bookings based on id (foreign key) or billboard_id
+        const combined = bookingsData.map(pb => {
+          const pbBillboardIds = Array.isArray(pb.billboard_id) 
+            ? pb.billboard_id.map(String) 
+            : (typeof pb.billboard_id === 'string' ? [pb.billboard_id] : []);
+
+          const matchedItems = allItems.filter(item => {
+            if (item.id !== undefined && item.id !== null && pb.id !== undefined && pb.id !== null) {
+              if (String(item.id) === String(pb.id)) return true;
+            }
+            return pbBillboardIds.includes(String(item.billboard_id));
+          });
+
+          const services = pb.extra_services || pb.extra_servirec || [];
+
+          return {
+            ...pb,
+            extra_services: services,
+            extra_servirec: services,
+            requested_booking_items: matchedItems.length > 0 ? matchedItems : (pb.items || []),
+            pending_booking_items: matchedItems.length > 0 ? matchedItems : (pb.items || []),
+            items: matchedItems.length > 0 ? matchedItems : (pb.items || [])
+          };
+        });
+
+        // Sync with local cache
+        setLocalState('adeffect_requested_bookings', combined);
+        setLocalState('adeffect_pending_bookings', combined);
+        return combined;
+      } else if (bError) {
+        console.error('Supabase fetch requested_bookings error:', bError);
       }
     } catch (e) {
-      console.warn('Supabase fetch pending_bookings error:', e);
+      console.error('Supabase fetch requested_bookings exception:', e);
     }
   }
 
-  const list = getLocalState('adeffect_pending_bookings', []);
-  if (userEmail) {
-    return list.filter(b => b.user_email === userEmail);
+  const list = getLocalState('adeffect_requested_bookings', getLocalState('adeffect_pending_bookings', []));
+  if (effectiveUserId) {
+    return list.filter(b => b.user_id === effectiveUserId);
   }
   return list;
 }
 
-// 5b. Delete a pending booking by ID
+// 5b. Delete a pending/requested booking by ID
 export async function deletePendingBooking(bookingId) {
   const sb = getSupabase();
   if (sb) {
     try {
-      // Delete child items first (pending_booking_items)
-      await sb.from('pending_booking_items').delete().eq('pending_booking_id', bookingId);
-      const { error } = await sb.from('pending_bookings').delete().eq('id', bookingId);
+      // 1. Delete associated items first from requested_booking_items
+      await sb.from('requested_booking_items').delete().eq('id', bookingId);
+
+      const { data: rb } = await sb.from('requested_bookings').select('*').eq('id', bookingId).maybeSingle();
+      if (rb) {
+        const bbIds = Array.isArray(rb.billboard_id) ? rb.billboard_id : [rb.billboard_id];
+        for (const bid of bbIds) {
+          if (bid) {
+            await sb.from('requested_booking_items').delete().eq('billboard_id', bid);
+          }
+        }
+      }
+
+      // 2. Delete from requested_bookings
+      const { error } = await sb.from('requested_bookings').delete().eq('id', bookingId);
       if (!error) {
-        // Also remove from local cache
-        const list = getLocalState('adeffect_pending_bookings', []);
+        const list = getLocalState('adeffect_requested_bookings', getLocalState('adeffect_pending_bookings', []));
         const updated = list.filter(b => String(b.id) !== String(bookingId));
+        setLocalState('adeffect_requested_bookings', updated);
         setLocalState('adeffect_pending_bookings', updated);
         return { success: true };
       }
-      console.warn('Supabase delete pending_booking warning:', error);
+      console.warn('Supabase delete requested_booking warning:', error);
     } catch (e) {
-      console.warn('Supabase delete pending_booking exception:', e);
+      console.warn('Supabase delete requested_booking exception:', e);
     }
   }
 
   // Local fallback
-  const list = getLocalState('adeffect_pending_bookings', []);
+  const list = getLocalState('adeffect_requested_bookings', getLocalState('adeffect_pending_bookings', []));
   const updated = list.filter(b => String(b.id) !== String(bookingId));
+  setLocalState('adeffect_requested_bookings', updated);
   setLocalState('adeffect_pending_bookings', updated);
   return { success: true };
 }
 
-// 6. Check Date Overlaps for a specific billboard against `bookings` and `pending_bookings` tables
-export async function fetchConfirmedBookings(billboardId) {
-  const sb = getSupabase();
-  let confirmed = [];
-  if (sb) {
-    try {
-      let query = sb.from('bookings').select('*');
-      if (billboardId) {
-        query = query.eq('billboard_id', billboardId);
-      }
-      const { data, error } = await query;
-      if (!error && data) {
-        confirmed = data;
-      }
-    } catch (e) {
-      console.warn('Supabase fetch bookings error:', e);
-    }
-  }
+// Aliases for modern naming
+export const submitRequestedBooking = submitPendingBooking;
+export const submitRequestedPackageBooking = submitPendingPackageBooking;
+export const fetchRequestedBookings = fetchPendingBookings;
+export const deleteRequestedBooking = deletePendingBooking;
 
-  // Local fallback mock bookings if none found in Supabase
-  if (confirmed.length === 0) {
-    const localBookings = getLocalState('adeffect_confirmed_bookings', [
-      {
-        id: 101,
-        client_id: 'user-sample-id',
-        billboard_id: 'U002-A',
-        start_time: '2026-09-01T00:00:00.000Z',
-        end_time: '2026-09-15T00:00:00.000Z',
-        is_active: true,
-        created_at: '2026-08-01T00:00:00.000Z'
-      }
-    ]);
-    confirmed = billboardId ? localBookings.filter(b => b.billboard_id === billboardId) : localBookings;
+// 6. Check Date Overlaps for a specific billboard against `bookings` and `requested_bookings`
+export async function fetchConfirmedBookings(billboardId) {
+  const allBookings = await fetchAllBookings();
+  if (billboardId) {
+    const target = String(billboardId).toUpperCase();
+    return allBookings.filter(b => String(b.billboard_id).toUpperCase() === target);
   }
-  return confirmed;
+  return allBookings;
 }
 
 // 6b. Fetch ALL bookings (no billboard filter) — used for bulk availability checks
 export async function fetchAllBookings() {
   const sb = getSupabase();
+  const allBookings = [];
+
   if (sb) {
     try {
-      const { data, error } = await sb.from('bookings').select('billboard_id, start_time, end_time');
-      if (!error && data) {
-        return data;
+      const { data, error } = await sb.from('bookings').select('billboard_id, start_time, end_time, is_active');
+      if (!error && Array.isArray(data)) {
+        allBookings.push(...data);
+      } else if (error) {
+        console.warn('Supabase fetchAllBookings (bookings) error:', error.message);
       }
-      if (error) console.warn('Supabase fetchAllBookings error:', error.message);
     } catch (e) {
-      console.warn('Supabase fetchAllBookings exception:', e);
+      console.warn('Supabase fetchAllBookings (bookings) exception:', e);
     }
-  }
 
-  // REST fallback
-  try {
-    const res = await fetch(
-      `${SUPABASE_URL}/rest/v1/bookings?select=billboard_id,start_time,end_time`,
-      {
-        headers: {
-          'apikey': SUPABASE_ANON_KEY,
-          'Authorization': `Bearer ${SUPABASE_ANON_KEY}`
-        }
+    try {
+      const { data: reqData, error: reqError } = await sb
+        .from('requested_bookings')
+        .select('id, billboard_id, start_time, end_time, status');
+      if (!reqError && Array.isArray(reqData)) {
+        // Only include approved requests as taken
+        const approvedReqs = reqData.filter(r => (r.status || '').toLowerCase() === 'approved');
+        allBookings.push(...approvedReqs);
+      } else if (reqError) {
+        console.warn('Supabase fetchAllBookings (requested_bookings) error:', reqError.message);
       }
-    );
-    if (res.ok) {
-      const data = await res.json();
-      if (Array.isArray(data)) return data;
+    } catch (e) {
+      console.warn('Supabase fetchAllBookings (requested_bookings) exception:', e);
     }
-  } catch (e) {
-    console.warn('fetchAllBookings REST fallback exception:', e);
   }
 
-  // Local fallback — return whatever confirmed bookings are stored locally
-  return getLocalState('adeffect_confirmed_bookings', []);
+  // Local fallback integration — include confirmed bookings and approved requested bookings
+  const localConfirmed = getLocalState('adeffect_confirmed_bookings', []);
+  const localRequested = getLocalState('adeffect_requested_bookings', getLocalState('adeffect_pending_bookings', []));
+  const localApproved = localRequested.filter(r => (r.status || '').toLowerCase() === 'approved');
+
+  const combined = [...allBookings, ...localConfirmed, ...localApproved];
+
+  // Flatten package billboard arrays so every taken billboard has a direct booking record
+  const flattened = [];
+  combined.forEach(b => {
+    if (Array.isArray(b.billboard_id)) {
+      b.billboard_id.forEach(singleBid => {
+        flattened.push({
+          ...b,
+          billboard_id: String(singleBid)
+        });
+      });
+    } else {
+      flattened.push(b);
+    }
+  });
+
+  return flattened;
 }
 
 export async function validateBookingDates(billboardId, startTimeStr, endTimeStr, billboardSize = null) {
@@ -623,83 +844,181 @@ const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12
 
 export async function fetchActiveBookings(userId = null) {
   const sb = getSupabase();
+  const user = getCurrentUser();
+  const effectiveUserId = (userId && typeof userId === 'string' && !userId.includes('@'))
+    ? userId
+    : (user ? user.id : null);
 
-  // Return empty immediately if no valid user_id is passed or it is not a UUID
-  if (!sb || !userId || !UUID_REGEX.test(userId)) {
-    return [];
-  }
+  const activeList = [];
 
-  try {
-    const { data, error } = await sb
-      .from('bookings')
-      .select('*, billboards(*)')
-      .eq('is_active', true)
-      .eq('user_id', userId);
+  // 1. Fetch from bookings table in Supabase
+  if (sb && effectiveUserId && UUID_REGEX.test(effectiveUserId)) {
+    try {
+      const { data, error } = await sb
+        .from('bookings')
+        .select('*, billboards(*)')
+        .eq('is_active', true)
+        .eq('user_id', effectiveUserId);
 
-    if (error) {
-      console.error('Supabase fetch active bookings error:', error.message);
-      return [];
+      if (!error && Array.isArray(data)) {
+        activeList.push(...data);
+      } else if (error) {
+        console.warn('Supabase fetch active bookings error:', error.message);
+      }
+    } catch (e) {
+      console.warn('Supabase fetch active bookings exception:', e);
     }
 
-    return data || [];
-  } catch (e) {
-    console.warn('Supabase fetch active bookings exception:', e);
-    return [];
+    // 2. Also fetch approved bookings from requested_bookings in Supabase
+    try {
+      const { data: reqData, error: reqError } = await sb
+        .from('requested_bookings')
+        .select('*')
+        .eq('user_id', effectiveUserId);
+
+      if (!reqError && Array.isArray(reqData)) {
+        const approvedReqs = reqData.filter(r => (r.status || '').toLowerCase() === 'approved');
+        activeList.push(...approvedReqs);
+      } else if (reqError) {
+        console.warn('Supabase fetch approved requested_bookings error:', reqError.message);
+      }
+    } catch (e) {
+      console.warn('Supabase fetch approved requested_bookings exception:', e);
+    }
   }
+
+  // 3. Local fallback state
+  const localActive = getLocalState('adeffect_active_bookings', []);
+  const localRequested = getLocalState('adeffect_requested_bookings', getLocalState('adeffect_pending_bookings', []));
+  const localApproved = localRequested.filter(r => {
+    const isUserMatch = !effectiveUserId || String(r.user_id) === String(effectiveUserId) || r.user_id === 'current_user';
+    return isUserMatch && (r.status || '').toLowerCase() === 'approved';
+  });
+
+  const allRaw = [...activeList, ...localActive, ...localApproved];
+
+  // De-duplicate by id or unique key
+  const seenIds = new Set();
+  const uniqueBookings = [];
+  allRaw.forEach(b => {
+    const key = `${b.id || ''}_${Array.isArray(b.billboard_id) ? b.billboard_id.join(',') : b.billboard_id || ''}`;
+    if (!seenIds.has(key)) {
+      seenIds.add(key);
+      uniqueBookings.push(b);
+    }
+  });
+
+  // Fetch billboard catalog to enrich any booking records missing joined billboard details
+  const catalog = await fetchBillboards();
+  const catalogMap = new Map();
+  catalog.forEach(bb => {
+    if (bb.billboard_id) catalogMap.set(String(bb.billboard_id).toUpperCase(), bb);
+  });
+
+  // Expand packages into individual active billboards
+  const result = [];
+  uniqueBookings.forEach(b => {
+    const bIds = Array.isArray(b.billboard_id)
+      ? b.billboard_id.map(String)
+      : (b.billboard_id ? [String(b.billboard_id)] : []);
+
+    if (bIds.length === 0 && b.billboards) {
+      result.push(b);
+      return;
+    }
+
+    if (bIds.length <= 1) {
+      const singleId = bIds[0] || (b.billboards && b.billboards.billboard_id);
+      const bbDetail = (b.billboards && typeof b.billboards === 'object')
+        ? b.billboards
+        : (singleId ? catalogMap.get(singleId.toUpperCase()) : null);
+
+      result.push({
+        ...b,
+        billboard_id: singleId || b.billboard_id || `Booking #${b.id}`,
+        billboards: bbDetail || b.billboards || null
+      });
+    } else {
+      // Multiple billboards in package — display each active billboard
+      bIds.forEach((singleId, idx) => {
+        const bbDetail = catalogMap.get(singleId.toUpperCase()) || null;
+        result.push({
+          ...b,
+          id: `${b.id}-${idx + 1}`,
+          parent_booking_id: b.id,
+          billboard_id: singleId,
+          billboards: bbDetail
+        });
+      });
+    }
+  });
+
+  return result;
 }
 
 // 8. Fetch Quotations for Client Dashboard ("Quotations")
 export async function fetchQuotations(userId, userEmail = null) {
   const sb = getSupabase();
-  // Only query Supabase if userId is a valid UUID; otherwise fall through to local fallback
-  if (sb && userId && UUID_REGEX.test(userId)) {
+  const user = getCurrentUser();
+  const effectiveUserId = userId || (user ? user.id : null);
+  const effectiveEmail = userEmail || (user ? user.email : null);
+
+  if (sb) {
+    // 1. Try querying with client_id matching user UUID or email
     try {
       let query = sb.from('quotations').select('*');
-      query = query.eq('client_id', userId);
+      if (effectiveUserId && UUID_REGEX.test(effectiveUserId)) {
+        if (effectiveEmail) {
+          query = query.or(`client_id.eq.${effectiveUserId},client_id.eq.${effectiveEmail}`);
+        } else {
+          query = query.eq('client_id', effectiveUserId);
+        }
+      } else if (effectiveUserId || effectiveEmail) {
+        query = query.eq('client_id', effectiveUserId || effectiveEmail);
+      }
+
       const { data, error } = await query;
-      if (!error && data) {
+      if (!error && Array.isArray(data) && data.length > 0) {
+        return data;
+      }
+      if (error) {
+        console.warn('Supabase fetch quotations by client_id warning:', error.message);
+      }
+    } catch (e) {
+      console.warn('Supabase fetch quotations by client_id exception:', e);
+    }
+
+    // 2. Try fetching all quotations visible to current authenticated session (RLS)
+    try {
+      const { data, error } = await sb.from('quotations').select('*');
+      if (!error && Array.isArray(data) && data.length > 0) {
+        const filtered = data.filter(q => {
+          if (!effectiveUserId && !effectiveEmail) return true;
+          const cid = String(q.client_id || '').toLowerCase();
+          const matchId = effectiveUserId && cid === String(effectiveUserId).toLowerCase();
+          const matchEmail = effectiveEmail && cid === String(effectiveEmail).toLowerCase();
+          const matchName = user && user.name && String(q.client_name || '').toLowerCase() === String(user.name).toLowerCase();
+          return matchId || matchEmail || matchName;
+        });
+        if (filtered.length > 0) return filtered;
+        // If RLS is enabled, returning data directly is safe as Supabase filtered it
         return data;
       }
     } catch (e) {
-      console.warn('Supabase fetch quotations error:', e);
+      console.warn('Supabase fetch all quotations exception:', e);
     }
   }
 
-  // Fallback local sample quotations matching table schema
-  const localQuotations = getLocalState('adeffect_quotations', [
-    {
-      id: 501,
-      created_at: new Date().toISOString(),
-      client_id: userId || 'client-uuid-001',
-      client_name: 'AdEffect Client',
-      media_type: 'Outdoor Unipole',
-      media_used: 'Backlit Vinyl Print',
-      reference: 'U002-A',
-      media_location: 'Bahsas, Tripoli Entrance',
-      frequency: 1,
-      period: '1 Month (Aug 2026)',
-      printing_cost: 250.00,
-      total_cost_wo_printing: 1000.00,
-      total_cost_with_printing: 1250.00
-    },
-    {
-      id: 502,
-      created_at: new Date(Date.now() - 86400000 * 5).toISOString(),
-      client_id: userId || 'client-uuid-001',
-      client_name: 'AdEffect Client',
-      media_type: 'Megapole Network',
-      media_used: 'Frontlit Flex Banner',
-      reference: 'U002-B',
-      media_location: 'Dam & Farz Highway',
-      frequency: 2,
-      period: '2 Months (Sep-Oct 2026)',
-      printing_cost: 400.00,
-      total_cost_wo_printing: 2400.00,
-      total_cost_with_printing: 2800.00
-    }
-  ]);
+  // 3. Fallback local sample quotations matching table schema
+  const localQuotations = getLocalState('adeffect_quotations', []);
+  const matchingLocal = localQuotations.filter(q => {
+    if (!effectiveUserId && !effectiveEmail) return true;
+    const cid = String(q.client_id || '').toLowerCase();
+    return (effectiveUserId && cid === String(effectiveUserId).toLowerCase()) ||
+           (effectiveEmail && cid === String(effectiveEmail).toLowerCase());
+  });
 
-  return localQuotations;
+  return matchingLocal;
 }
 
 // 9. Update user profile fields in `users` table

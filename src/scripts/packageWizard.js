@@ -277,7 +277,7 @@ async function handleConfirmPackage() {
   }
 
   const payload = {
-    user_email: user.email,
+    //user_email: user.email,
     start_time: new Date(packageStartDate).toISOString(),
     end_time: new Date(packageEndDate).toISOString(),
     brief_url: briefUrl,

@@ -99,49 +99,104 @@
           <a href="#" id="btnGoToDashboard" onclick="window.handleDashboardNavigation ? window.handleDashboardNavigation() : window.showPage('dashboardSection'); return false;" class="btn-explore">Go to Client Dashboard</a>
           <a href="#discoverySection" onclick="window.showPage('discoverySection'); return false;" class="btn-book">Book Your Billboard</a>
         </div>
+        <div id="homeCategoryPills" class="home-category-pills">
+          <span class="pills-title">Quick Explore:</span>
+          <button type="button" class="cat-pill" onclick="window.filterDiscoveryCategory ? window.filterDiscoveryCategory('Unipole') : window.showPage('discoverySection')">
+            <span class="pill-dot"></span> Unipoles
+          </button>
+          <button type="button" class="cat-pill" onclick="window.filterDiscoveryCategory ? window.filterDiscoveryCategory('Megapole') : window.showPage('discoverySection')">
+            <span class="pill-dot"></span> Megapoles
+          </button>
+          <button type="button" class="cat-pill" onclick="window.filterDiscoveryCategory ? window.filterDiscoveryCategory('Wallbanner') : window.showPage('discoverySection')">
+            <span class="pill-dot"></span> Wallbanners
+          </button>
+          <button type="button" class="cat-pill" onclick="window.filterDiscoveryCategory ? window.filterDiscoveryCategory('Rooftop') : window.showPage('discoverySection')">
+            <span class="pill-dot"></span> Rooftops
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Floating Stats Chips Around Stage -->
+    <div class="home-floating-chips">
+      <div class="floating-chip chip-left">
+        <div class="chip-icon">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+        </div>
+        <div class="chip-content">
+          <span class="chip-value">50+</span>
+          <span class="chip-label">Billboards of all sizes, in multiple locations</span>
+        </div>
+      </div>
+
+      <div class="floating-chip chip-right">
+        <div class="chip-icon">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+        </div>
+        <div class="chip-content">
+          <span class="chip-value">25+ Years</span>
+          <span class="chip-label">Connecting Media</span>
+        </div>
+      </div>
+
+      <div class="floating-chip chip-center">
+        <div class="chip-icon" style="background: #ECFDF5; color: #10B981;">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+        </div>
+        <div class="chip-content">
+          <span class="chip-value">50,000+</span>
+          <span class="chip-label">Daily Highway Impressions</span>
+        </div>
       </div>
     </div>
 
     <!-- 3 Billboards Display Stage -->
     <div id="billboardsStage" class="billboards-stage">
-      <div class="billboard-side">
+      <div class="billboard-side billboard-left">
         <div class="billboard-lamps">
-          <div class="lamp"></div>
-          <div class="lamp"></div>
-          <div class="lamp"></div>
+          <div class="lamp"><div class="lamp-cone"></div></div>
+          <div class="lamp"><div class="lamp-cone"></div></div>
+          <div class="lamp"><div class="lamp-cone"></div></div>
         </div>
         <div class="billboard-side-screen">
           <img src="/assets/placeholders/billboard1.jpg" alt="Outdoor Billboard Left" class="billboard-screen-img" />
+          <div class="billboard-glass-shine"></div>
+          <div class="billboard-tag-pill">Tripoli Highway • U0015</div>
         </div>
         <div class="billboard-pole"></div>
       </div>
 
       <div class="billboard-center">
         <div class="billboard-lamps" style="width: 90%;">
-          <div class="lamp"></div>
-          <div class="lamp"></div>
-          <div class="lamp"></div>
-          <div class="lamp"></div>
+          <div class="lamp"><div class="lamp-cone"></div></div>
+          <div class="lamp"><div class="lamp-cone"></div></div>
+          <div class="lamp"><div class="lamp-cone"></div></div>
+          <div class="lamp"><div class="lamp-cone"></div></div>
         </div>
         <div class="billboard-center-screen">
           <div class="center-screen-inner">
-            <div class="center-screen-badge">AD EFFECT</div>
-            <h3 class="center-screen-title">LEADING OUTDOOR MEDIA</h3>
-            <p class="center-screen-subtitle">NORTH LEBANON</p>
+            <div class="screen-live-tag">
+              <span class="live-indicator-dot"></span>
+              <span id="centerScreenBadge" class="center-screen-badge">AD EFFECT • LIVE</span>
+            </div>
+            <h3 id="centerScreenTitle" class="center-screen-title">LEADING OUTDOOR MEDIA</h3>
+            <p id="centerScreenSubtitle" class="center-screen-subtitle">NORTH LEBANON'S #1 NETWORK</p>
           </div>
         </div>
         <div class="billboard-truss"></div>
         <div class="billboard-center-pole"></div>
       </div>
 
-      <div class="billboard-side">
+      <div class="billboard-side billboard-right">
         <div class="billboard-lamps">
-          <div class="lamp"></div>
-          <div class="lamp"></div>
-          <div class="lamp"></div>
+          <div class="lamp"><div class="lamp-cone"></div></div>
+          <div class="lamp"><div class="lamp-cone"></div></div>
+          <div class="lamp"><div class="lamp-cone"></div></div>
         </div>
         <div class="billboard-side-screen">
           <img src="/assets/placeholders/billboard2.jpg" alt="Outdoor Billboard Right" class="billboard-screen-img" />
+          <div class="billboard-glass-shine"></div>
+          <div class="billboard-tag-pill">Chekka Coastal • MG0019</div>
         </div>
         <div class="billboard-pole"></div>
       </div>
@@ -345,7 +400,7 @@
             <label class="checkbox-label"><input type="checkbox" name="filter_size" value="W: 10 - H: 20" /> W: 10 - H: 20</label>
             <label class="checkbox-label"><input type="checkbox" name="filter_size" value="W: 10 - H: 12" /> W: 10 - H: 12</label>
             <label class="checkbox-label"><input type="checkbox" name="filter_size" value="W: 7.65 - H: 3.65" /> W: 7.65 - H: 3.65</label>
-            <label class="checkbox-label"><input type="checkbox" name="filter_size" value="3:4" /> 3:4</label>
+            <!--<label class="checkbox-label"><input type="checkbox" name="filter_size" value="3:4" /> 3:4</label>-->
           </div>
         </div>
       </div>
@@ -682,7 +737,7 @@
 
           <!-- FORGOT PASSWORD -->
           <p style="text-align: center; margin-top: 12px;">
-            <a href="#" id="btnForgotPassword" style="color: #666; font-size: 0.9rem; text-decoration: underline;">Forgot your password?</a>
+            <a href="/forgot-password" id="btnForgotPassword" style="color: #666; font-size: 0.9rem; text-decoration: underline;">Forgot your password?</a>
           </p>
 
           <p style="text-align: center; margin-top: 16px; font-weight: 600;" class="auth-switch-text">
@@ -917,7 +972,6 @@
 
   <!-- Empty State -->
   <div id="careersEmpty" style="display: none; text-align: center; padding: 60px 20px;">
-    <div style="font-size: 3rem; margin-bottom: 16px;">📋</div>
     <h3 style="font-size: 1.4rem; font-weight: 800; color: #111; margin-bottom: 8px;">No open positions right now</h3>
     <p style="color: #666; font-weight: 600;">Check back soon — we're always growing.</p>
   </div>

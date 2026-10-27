@@ -460,7 +460,7 @@ async function handleBookingSubmission() {
   }
 
   const payload = {
-    user_email: user.email,
+    //user_email: user.email,
     billboard_id: bookingState.billboard_id,
     start_time: bookingState.start_time,
     end_time: bookingState.end_time,
